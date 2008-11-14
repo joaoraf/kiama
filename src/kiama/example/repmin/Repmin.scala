@@ -28,16 +28,16 @@ object Repmin {
     case class Pair (left : Tree, right : Tree) extends Tree
     case class Leaf (value : Int) extends Tree
 
-    val locmin : Attributable => Int = 
+    val locmin : Tree => Int = 
         attr {
             case Pair (l, r) => locmin (l).min (locmin (r))
             case Leaf (v)    => v
         }  
     
-    val globmin : Attributable => Int =
+    val globmin : Tree => Int =
         attr {
             case t if t.isRoot => locmin (t)
-            case t             => globmin (t.parent) 
+            case t             => globmin (t.parent.asInstanceOf[Tree]) 
         }
                 
     val repmin : Tree => Tree = 
