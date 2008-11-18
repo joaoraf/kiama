@@ -62,11 +62,11 @@ object TypeAnalysis {
     val tipe : Attributable => TypeDecl =
         attr {
             case t : TypeDecl       => t 
-            case v : VarDecl        => tipe (decl (v.Type))
-            case i : IdUse          => tipe (decl (i))
-            case d : Dot            => tipe (d.IdUse)
-            case b : BooleanLiteral => booleanType (b)
-            case t                  => unknownDecl (t)
+            case v : VarDecl        => v.Type->decl->tipe
+            case i : IdUse          => i->decl->tipe
+            case d : Dot            => d.IdUse->tipe
+            case b : BooleanLiteral => b->booleanType
+            case t                  => t->unknownDecl
         }
     
     /**
@@ -111,7 +111,7 @@ object TypeAnalysis {
         attr {
             case UnknownDecl (_) => _ => true
             case t : TypeDecl    => typedecl =>
-                (t == typedecl) || (superClass (typedecl) != null) && (isSubtypeOf (superClass (typedecl)) (t))
+                (t == typedecl) || (typedecl->superClass != null) && (isSubtypeOf (typedecl->superClass) (t))
         }
     
     /**
@@ -129,7 +129,7 @@ object TypeAnalysis {
         attr {
             c => c.Superclass match {
                      case Some (i) =>
-                         decl (i) match {
+                         i->decl match {
                              case sc : ClassDecl if !hasCycleOnSuperclassChain (c) => sc
                              case _                                                => null
                          }
@@ -152,7 +152,7 @@ object TypeAnalysis {
         circular (true) {
             c => c.Superclass match {
                      case Some (i) => 
-                         decl (i) match {
+                         i->decl match {
                              case sc : ClassDecl => hasCycleOnSuperclassChain (sc)
                              case _              => false
                          }
@@ -174,7 +174,7 @@ object TypeAnalysis {
      */
     val isValue : Exp => Boolean =
         attr {
-            case i : IdUse => ! (decl (i).isInstanceOf[TypeDecl]) // replace this one
+            case i : IdUse => ! (i->decl).isInstanceOf[TypeDecl] // replace this one
             // with this one, when the rewrites are in:
             // case t : TypeUse => false          
             case d : Dot   => isValue (d.IdUse)

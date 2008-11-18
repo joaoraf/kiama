@@ -62,24 +62,24 @@ class BasicNameResolutionTests extends TestCase with JUnit3Suite {
                             AssignStmt (yInA, Use ("z"))))))))
 
     def testBindingInSameBlock {
-        assertSame (declRx, decl (xInR))
+        assertSame (declRx, xInR->decl)
     }
       
     def testDeclarationOrderIrrelevant {
-        assertSame (declRz, decl (zInR))
+        assertSame (declRz, zInR->decl)
     }
   
     def testMissingDecl {
-        assertTrue (isUnknown (decl (yInR)))
-        assertTrue (isUnknown (decl (yInA)))
+        assertTrue (isUnknown (yInR->decl))
+        assertTrue (isUnknown (yInA->decl))
     }
   
     def testBindingInOuterBlock {
-        assertSame (declRx, decl (xInA))
+        assertSame (declRx, xInA->decl)
     }
   
     def testShadowingDeclaration {
-        assertSame (declAz, decl (zInA))
+        assertSame (declAz, zInA->decl)
     }
 
 }

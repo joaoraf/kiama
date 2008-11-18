@@ -65,7 +65,7 @@ class ErrorTests extends TestCase with JUnit3Suite {
 """;      
         parseAll (program, text) match {
             case Success (ast, _) => {
-                val messages = errors (ast)
+                val messages = ast->errors
                 assertEquals ("5.9: Unknown identifier b", messages (0))
                 assertEquals ("7.5: Can not assign a variable of type boolean to a value of type A", messages (1))
                 assertEquals ("3.3: Cyclic inheritance chain for class A", messages (2))

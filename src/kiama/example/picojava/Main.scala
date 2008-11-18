@@ -8,7 +8,7 @@ object Main {
     def main (args : Array[String]) : Unit = {
         for (filename <- args) {
             val program = Parser.run (new FileReader (filename))
-            val messages = errors (program)
+            val messages = program->errors
             for (msg <- messages)
                 println (filename + ":" + msg)
         }

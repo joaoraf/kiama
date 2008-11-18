@@ -81,39 +81,39 @@ class InheritanceNameResolutionTests extends TestCase with JUnit3Suite {
                                       AssignStmt (eInBB, fInBB))))))))))
   
       def testBindingInOuterBlock {
-          assertSame (declAa, decl (aInAA))
+          assertSame (declAa, aInAA->decl)
       }
       
       def testBlockStructureShadowing {
-          assertSame (declAAb, decl (bInAA))
+          assertSame (declAAb, bInAA->decl)
       }
   
       def testSuperclassBinding {
-          assertSame (declA, decl (AinB))
+          assertSame (declA, AinB->decl)
       }
   
       def testInheritance {
-          assertSame (declAa, decl (aInB))
+          assertSame (declAa, aInB->decl)
       }
   
       def testInheritanceShadowing {
-          assertSame (declBc, decl (cInB))
+          assertSame (declBc, cInB->decl)
       }
   
       def testSuperclassBindingOfInnerClass {
-          assertSame (declAA, decl (AAinBB))
+          assertSame (declAA, AAinBB->decl)
       }
   
       def testInheritanceInOuterClass {
-          assertSame (declAa, decl (aInBB));
+          assertSame (declAa, aInBB->decl);
       }
   
       def testSuperclassShadowsOuterBlock {
-          assertSame (declAAe, decl (eInBB));
+          assertSame (declAAe, eInBB->decl);
       }
         
       def testSuperclassDoesNotShadowOuterBlock {
-          assertSame (declBf, decl (fInBB))
+          assertSame (declBf, fInBB->decl)
       }
 
 }

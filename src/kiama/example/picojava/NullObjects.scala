@@ -45,9 +45,9 @@ object NullObjects {
      */
     val unknownDecl : Attributable => UnknownDecl =
         attr {
-            case p : Program => locallookup (p) ("$unknown").asInstanceOf[UnknownDecl]
+            case p : Program => (p->locallookup ("$unknown")).asInstanceOf[UnknownDecl]
             // FIXME: need NTA case?
-            case t           => unknownDecl (t.parent) 
+            case t           => t.parent->unknownDecl
         }
 
 }

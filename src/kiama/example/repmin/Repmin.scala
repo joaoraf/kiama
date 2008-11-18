@@ -30,20 +30,20 @@ object Repmin {
 
     val locmin : Tree => Int = 
         attr {
-            case Pair (l, r) => locmin (l).min (locmin (r))
+            case Pair (l, r) => (l->locmin).min (r->locmin)
             case Leaf (v)    => v
         }  
     
     val globmin : Tree => Int =
         attr {
-            case t if t.isRoot => locmin (t)
-            case t             => globmin (t.parent.asInstanceOf[Tree]) 
+            case t if t.isRoot => t->locmin
+            case t             => t.parent.asInstanceOf[Tree]->globmin 
         }
                 
     val repmin : Tree => Tree = 
         attr {
-            case Pair (l, r)  => Pair (repmin (l), repmin (r))
-            case t @ Leaf (_) => Leaf (globmin (t))
+            case Pair (l, r)  => Pair (l->repmin, r->repmin)
+            case t @ Leaf (_) => Leaf (t->globmin)
         }
 
 }

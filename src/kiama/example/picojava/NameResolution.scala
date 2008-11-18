@@ -46,8 +46,8 @@ object NameResolution {
      */
     val decl : Access => Decl =
         attr {
-            case Dot (_, n) => decl (n)
-            case u : IdUse  => lookup (u) (u.Name) 
+            case Dot (_, n)    => n->decl
+            case u @ IdUse (n) => u->lookup (n) 
         }
 
     /**
@@ -82,31 +82,32 @@ object NameResolution {
      *    // Do a remote lookup on the object's type.
      *    getObjectReference().decl().type().remoteLookup(name);
      */
-    val lookup : Attributable => (String => Decl) =
-        attr {
-             case b : Block => name =>
-                  b.parent match {
-                      case p : Program   => locallookup (p) (name)
-                      case c : ClassDecl =>
-                          if ((superClass (c) != null) && (!isUnknown (remoteLookup (superClass (c)) (name))))
-                              remoteLookup (superClass (c)) (name)
-                          else
-                              lookup (c) (name)
-                  }
-             case s : BlockStmt => name =>
-                  s.parent match {
-                      case b : Block => {
-                          val d = locallookup (b) (name)
-                          if (isUnknown (d)) lookup (b) (name) else d                      
-                      }
-                      case p => lookup (p) (name) 
-                  }
-             case i : IdUse => name =>
-                  i.parent match {
-                      case Dot (a, `i`) => remoteLookup (tipe (decl (a))) (name)
-                      case p            => lookup (p) (name) 
-                  }
-             case t => name => lookup (t.parent) (name) 
+    val lookup : String => Attributable => Decl =
+        name => attr {
+             case b : Block =>
+                 b.parent match {
+                     case p : Program   => p->locallookup (name)
+                     case c : ClassDecl =>
+                         if ((c->superClass != null) && (!isUnknown (c->superClass->remoteLookup (name))))
+                             c->superClass->remoteLookup (name)
+                         else
+                             c->lookup (name)
+                 }
+             case s : BlockStmt =>
+                 s.parent match {
+                     case b : Block => {
+                         val d = b->locallookup (name)
+                         if (isUnknown (d)) b->lookup (name) else d                      
+                     }
+                     case p => p->lookup (name)
+                 }
+             case i : IdUse =>
+                 i.parent match {
+                   case Dot (a, `i`) => a->decl->tipe->remoteLookup (name)
+                   case p            => p->lookup (name)
+                 }
+             case t =>
+                 t.parent->lookup (name) 
         }
                    
     /**
@@ -128,10 +129,10 @@ object NameResolution {
      *     return unknownDecl();
      * }
      */
-    val locallookup : Attributable => (String => Decl) =
-        attr {
-             case p : Program => name => finddecl (p, name, predefinedTypes (p))
-             case b : Block   => name => finddecl (b, name, b.BlockStmts)             
+    val locallookup : String => Attributable => Decl =
+        name => attr {
+             case p : Program => finddecl (p, name, p->predefinedTypes)
+             case b : Block   => finddecl (b, name, b.BlockStmts)             
         }
 
     /**
@@ -140,10 +141,10 @@ object NameResolution {
      */
     private def finddecl (t : Attributable, name : String, blockstmts : Seq[BlockStmt]) : Decl = {
          for (blockstmt <- blockstmts) {
-             val d = declarationOf (blockstmt) (name)
+             val d = blockstmt->declarationOf (name)
              if (d != null) return d
          }
-         unknownDecl (t)
+         t->unknownDecl
     }
     
     /**
@@ -165,17 +166,17 @@ object NameResolution {
      *     return unknownDecl();
      * }
      */
-    val remoteLookup : Attributable => (String => Decl) =
-        attr {
-            case c : ClassDecl => name => {
-                if (!isUnknown (locallookup (c.Body) (name)))
-                    locallookup (c.Body) (name)
-                else if ((superClass (c) != null) && (!isUnknown (remoteLookup (superClass (c)) (name))))
-                    remoteLookup (superClass (c)) (name)
+    val remoteLookup : String => Attributable => Decl =
+        name => attr {
+            case c : ClassDecl =>
+                if (!isUnknown (c.Body->locallookup (name)))
+                    c.Body->locallookup (name)
+                else if ((c->superClass != null) && (!isUnknown (c->superClass->remoteLookup (name))))
+                    c->superClass->remoteLookup (name)
                 else
-                    unknownDecl (c)
-            }
-            case t : TypeDecl => _ => unknownDecl (t)
+                    c->unknownDecl
+            case t : TypeDecl =>
+                t->unknownDecl
         }
 
     /**
@@ -186,10 +187,10 @@ object NameResolution {
      *     return null;
      * }
      */
-    val declarationOf : BlockStmt => (String => Decl) =
-         attr {
-              case d : Decl => name => if (name == d.Name) d else null 
-              case _        => _ => null
+    val declarationOf : String => BlockStmt => Decl =
+         name => attr {
+              case d : Decl => if (name == d.Name) d else null 
+              case _        => null
          }
     
 }

@@ -61,9 +61,9 @@ object PredefinedTypes {
      */  
     val booleanType : Attributable => PrimitiveDecl =
         attr {
-            case p : Program => locallookup (p) ("boolean").asInstanceOf[PrimitiveDecl]
+            case p : Program => (p->locallookup ("boolean")).asInstanceOf[PrimitiveDecl]
             // FIXME don't have NTA case, needed?
-            case t           => booleanType (t.parent)
+            case t           => t.parent->booleanType
         }
 
 }

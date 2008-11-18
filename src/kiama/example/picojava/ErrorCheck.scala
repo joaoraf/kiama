@@ -50,7 +50,7 @@ object ErrorCheck {
         {
             p => {
                 val b = new ListBuffer[String] ()
-                collectErrors (p) (b)
+                p->collectErrors (b)
                 b
             }
         }
@@ -90,33 +90,33 @@ object ErrorCheck {
      *         error(c, "Unknown identifier " + getName());
      * }
      */
-    val collectErrors : Attributable => (Buffer[String] => Unit) = 
-        attr {
-            case t => c =>
+    val collectErrors : Buffer[String] => Attributable => Unit = 
+        c => attr {
+            case t =>
                 // Process the errors of the children of t
                 for (child <- t.children)
-                    collectErrors (child) (c)
+                    child->collectErrors (c)
                 // Process the errors at t
                 t match {
                     case a : AssignStmt =>
-                        if (!isSubtypeOf (tipe (a.Value)) (tipe (a.Variable)))
-                            record (a) (c, "Can not assign a variable of type " +
-                                            tipe (a.Variable).Name +
-                                            " to a value of type " +
-                                            tipe (a.Value).Name)
+                        if (!isSubtypeOf (a.Value->tipe) (a.Variable->tipe))
+                            a->record (c, "Can not assign a variable of type " +
+                                          (a.Variable->tipe).Name +
+                                          " to a value of type " +
+                                          (a.Value->tipe).Name)
                     case d : ClassDecl =>
                         if (hasCycleOnSuperclassChain (d))
-                            record (d) (c, "Cyclic inheritance chain for class " +
-                                            d.Name)
+                            d->record (c, "Cyclic inheritance chain for class " +
+                                          d.Name)
                     case s : WhileStmt =>
-                        if (!isSubtypeOf (tipe (s.Condition)) (booleanType (s)))
-                            record (s) (c, "Condition must be a boolean expression")
+                        if (!isSubtypeOf (s.Condition->tipe) (booleanType (s)))
+                            s->record (c, "Condition must be a boolean expression")
                         if (!isValue (s.Condition))
-                            record (s) (c, "Condition must be a value")
+                            s->record (c, "Condition must be a value")
                     case i : IdUse =>
-                        if (isUnknown (decl (i)) &&
-                            (!isQualified (i) || !isUnknown (tipe (qualifier (i)))))
-                            record (i) (c, "Unknown identifier " + i.Name)
+                        if (isUnknown (i->decl) &&
+                            (!isQualified (i) || !isUnknown (i->qualifier->tipe)))
+                            i->record (c, "Unknown identifier " + i.Name)
                     case _ =>
                 }
         }
@@ -129,8 +129,8 @@ object ErrorCheck {
      *    c.add(s);
      * }
      */
-    val record : Attributable => ((Buffer[String],String) => Unit) =
-        a => (b,s) => b + ((a.pos) + ": " + s)
+    val record : (Buffer[String],String) => Attributable => Unit =
+        (b,s) => a => b + ((a.pos) + ": " + s)
 
     /**
      * Is this entity qualified?

@@ -33,7 +33,7 @@ class RepminTests extends TestCase with JUnit3Suite {
      */
     def testBasic {
         val t = Pair (Leaf (3), Pair (Leaf (1), Leaf (10)))
-        assertEquals (Pair (Leaf (1), Pair (Leaf (1), Leaf (1))), repmin (t))
+        assertEquals (Pair (Leaf (1), Pair (Leaf (1), Leaf (1))), t->repmin)
     }
       
 }
