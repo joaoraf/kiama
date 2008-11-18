@@ -23,11 +23,7 @@ package kiama.example.dataflow
 /**
  * Simple dataflow equation attribution example.
  */
-object Dataflow {
-
-    import kiama.attribution.DynamicAttribution._
-    import kiama.attribution.Attribution.Attributable // FIXME: This should not be here
-
+object Dataflow extends kiama.attribution.DynamicAttribution {
     type Var = String
     
     case class Program (body : Stm) extends Attributable

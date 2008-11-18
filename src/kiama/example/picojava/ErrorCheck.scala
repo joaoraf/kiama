@@ -47,7 +47,7 @@ object ErrorCheck {
      * }
      */
     val errors : Program => Seq[String] =
-        attr {
+        {
             p => {
                 val b = new ListBuffer[String] ()
                 collectErrors (p) (b)
@@ -142,7 +142,7 @@ object ErrorCheck {
      * inh boolean TypeDecl.isQualified();
      */
     val isQualified : IdUse => Boolean =
-        attr {
+        {
             i => i.parent match {
                 case Dot (_, _)  => true
                 case _           => false

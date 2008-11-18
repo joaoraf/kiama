@@ -1,16 +1,25 @@
 package kiama.attribution
 
-object DynamicAttribution { // TODO: extend Attribution (work around serious scalac b0rkage)
+object DynamicAttribution extends DynamicAttribution
+
+trait DynamicAttribution {
+    // TODO: extend Attribution (work around some serious scalac b0rkage)
+    import Attribution._
+    type Attributable = Attribution.Attributable
+
     import scala.collection.mutable._
-    import Attribution.Attributable
-    
+    import scala.collection.jcl.IdentityHashMap
+
     type ChangeBuffer = Buffer[(Attr[_, _], PartialFunction[_, _])]
     private var currentRecordedChanges : ChangeBuffer = null
-    private val allRecordedChanges = new HashMap[AnyRef, ChangeBuffer]    
+    private val allRecordedChanges = new IdentityHashMap[AnyRef, ChangeBuffer]    
     private var equationsVersion = 0
 
-    def attr[TIn <: Attributable, TOut](f : PartialFunction[TIn, TOut]) : PartialFunction[TIn, TOut] =
+    def attr[TIn <: Attributable, TOut](f : PartialFunction[TIn, TOut]) : Attr[TIn, TOut] =
         new Attr(new ComposedPartialFunction[TIn, TOut] { add(f) })
+
+    def circular[TIn,TOut] (init : TOut) (f : TIn => TOut) : TIn => TOut =
+        Attribution.circular(init)(f)
     
     def childAttr[T <: Attributable,U] (f : PartialFunction[(T, Attributable), U]) : PartialFunction[T, U] = {
         val childF = new PartialFunction[T, U] {
@@ -19,22 +28,17 @@ object DynamicAttribution { // TODO: extend Attribution (work around serious sca
         }
         attr(childF)
     }
-    
-    def circular[T,U] (init : U) (f : T => U) : T => U =
-        new Attribution.CircularAttribute(init, f)
 
     /**
      * Implicitly converts (partial) functions to support the + operator.
      **/
     implicit def internalToAttr[TIn <: Attributable, TOut](f : Function[TIn, TOut]) : Attr[TIn, TOut] =
         f match {
-            case f : PartialFunction[_, _] => attr(f)
-            case f => throw new UnsupportedOperationException("Can only convert a partial function to an Attr")
-            // TODO: Implement a + operator for a (non-partial function + partial function)?
+            case f : DynamicAttribution#Attr[_, _] => f.asInstanceOf[Attr[TIn,TOut]]
+            case f => throw new UnsupportedOperationException()
         }
 
     def using[T](attributeInitializer : => AnyRef)(block : => T) = {
-
         try {
             use(attributeInitializer)
             block
@@ -69,10 +73,11 @@ object DynamicAttribution { // TODO: extend Attribution (work around serious sca
     }
     
     // TODO: Rename to DynamicAttribute, inherit and reuse from Attribute?
-    class Attr[TIn <: Attributable, TOut] (private[DynamicAttribution] var f : ComposedPartialFunction[TIn, TOut])
+    
+    class Attr[TIn <: Attributable, TOut] (var f : ComposedPartialFunction[TIn, TOut])
             extends PartialFunction[TIn, TOut] {
     
-        private val cache = new scala.collection.jcl.WeakHashMap[TIn, Option[TOut]]
+        private val cache = new IdentityHashMap[TIn, Option[TOut]]
         private var cacheVersion = equationsVersion
     
         def apply(node : TIn) = {
@@ -96,7 +101,7 @@ object DynamicAttribution { // TODO: extend Attribution (work around serious sca
         
         def isDefinedAt(node : TIn) = f.isDefinedAt(node)
         
-        def +=(that : PartialFunction[TIn, TOut]) {
+        def +=(that : PartialFunction[TIn, TOut]) = {
             if (currentRecordedChanges != null) currentRecordedChanges += (this, that)
             
             f.add(that)
@@ -104,7 +109,7 @@ object DynamicAttribution { // TODO: extend Attribution (work around serious sca
     }
             
     trait ComposedPartialFunction[TIn, TOut] extends PartialFunction[TIn, TOut] {
-        val functions = new scala.collection.mutable.ArrayBuffer[PartialFunction[TIn, TOut]]
+        val functions = new ArrayBuffer[PartialFunction[TIn, TOut]]
       
         def isDefinedAt(i : TIn) = functions.exists(_ isDefinedAt i)
         

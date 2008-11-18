@@ -21,9 +21,15 @@
 package kiama.attribution
 
 /**
+ * Support for attribution of syntax trees in a functional style,
+ * provided as a singleton object.
+ */
+object Attribution extends AttributionTrait
+
+/**
  * Support for attribution of syntax trees in a functional style.
  */
-object Attribution {  
+trait AttributionTrait {  
 
     import scala.util.parsing.input.Positional
   
