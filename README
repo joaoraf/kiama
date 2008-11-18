@@ -32,7 +32,7 @@ like to have access.)
 The sources can be checked out of our Mercurial repository using the
 following command:
 
-    hg clone http://plrg.ics.mq.edu.au:8000/Kiama
+    hg clone https://plrg.ics.mq.edu.au/hg/Kiama
 
 2. Contents
 
