@@ -78,7 +78,7 @@ object TypeAnalysis {
      * eq ClassDecl.isSubtypeOf(TypeDecl typeDecl) = typeDecl.isSuperTypeOfClassDecl(this);
      * eq UnknownDecl.isSubtypeOf(TypeDecl typeDecl) = true;
      */
-    val isSubtypeOf : Decl => (TypeDecl => Boolean) =
+    val isSubtypeOf : TypeDecl => (TypeDecl => Boolean) =
         attr {
              case UnknownDecl (_) => _ => true
              case c : ClassDecl   => typedecl => isSuperTypeOfClassDecl (typedecl) (c)
@@ -135,7 +135,6 @@ object TypeAnalysis {
                          }
                      case None     => null 
                  }
-          
         }
         
     /**
