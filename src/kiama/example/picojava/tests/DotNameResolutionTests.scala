@@ -42,25 +42,30 @@ class DotNameResolutionTests extends TestCase with JUnit3Suite {
 
     private val axInA   = Use ("x")
     private val declAAx = VarDecl ("x", Use ("int"))
-    private val bxInBB  = Use("x")
-    private val byInBB  = Use("y")
-    
+    private val bxInBB  = Use ("x")
+    private val byInBB  = Use ("y")
+    private val BBinBB  = Use ("BB")
+    private val declAA  = ClassDecl ("AA", None, Block (List (declAAx)))
+    private val declBB  = ClassDecl ("BB", Some (Use ("AA")), Block (
+                              List (VarDecl ("b", BBinBB),
+                                    AssignStmt (Dot (Use ("b"), byInBB),
+                                                Dot (Use ("b"), bxInBB)))))    
+
     val ast =
         Program (Block (
             List (ClassDecl ("A", None, Block (
                       List (VarDecl ("y", Use ("int")),
                             VarDecl ("a", Use ("AA")),
-                            AssignStmt (Use ("x"),
-                                        Dot (Use ("a"), axInA)),
-                            ClassDecl ("AA", None, Block (
-                                List (declAAx))),
-                            ClassDecl ("BB", Some (Use ("AA")), Block (
-                                List (VarDecl ("b", Use ("BB")),
-                                      AssignStmt (Dot (Use ("b"), byInBB),
-                                                  Dot (Use ("b"), bxInBB)))))))))))
+                            AssignStmt (Use ("x"), Dot (Use ("a"), axInA)),
+                            declAA,
+                            declBB))))))
 
     def testSimpleDot {
         assertSame (declAAx, axInA->decl)
+    }
+
+    def testClassTypeRef {
+        assertSame (declBB, BBinBB->decl)
     }
 
     def testInheritedDot {
@@ -70,5 +75,5 @@ class DotNameResolutionTests extends TestCase with JUnit3Suite {
     def testSurroundingContextIsNotVisible {
         assertTrue (isUnknown (byInBB->decl))
     }
-    
+
 }
