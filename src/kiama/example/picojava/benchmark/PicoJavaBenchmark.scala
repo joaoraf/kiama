@@ -35,7 +35,6 @@ object PicoJavaBenchmark extends Application {
     
     System.gc
     
-    /*
     // Two-step benchmark
     
     // Initialize inputs
@@ -60,9 +59,9 @@ object PicoJavaBenchmark extends Application {
         DynamicAttribution.resetMemo
     }
     
-    println("Found " + result + " errors in each run; this took a total of " + (System.currentTimeMillis - start) + "ms")
-    */
+    println((System.currentTimeMillis - start))
 
+	/*
     var time : Long = 0
     var result : Int = 0
     
@@ -79,5 +78,6 @@ object PicoJavaBenchmark extends Application {
         DynamicAttribution.resetMemo
     }
     
-    System.out.println("Found " + result + " errors in each run; this took " + (time / 1000000) + "ms")
+    println((time / 1000000))
+    */
 }
