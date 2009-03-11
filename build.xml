@@ -30,7 +30,7 @@
   <!-- Project properties -->
 
   <property name="name"          value="${ant.project.name}"/>
-  <property name="version.nr"    value="0.1"/>
+  <property name="version.nr"    value="0.5"/>
   <property name="version"       value="${version.nr}dev"/>
   <property name="author"        value="Anthony M. Sloane"/>
 
@@ -41,7 +41,7 @@
   </taskdef>
 
   <!-- Targets -->
-
+  
   <target name="prepare">
     <mkdir dir="bin"/>
     <mkdir dir="bin/doc"/>
@@ -90,9 +90,7 @@
     <copy todir="bin/doc">
       <fileset dir=".">
         <include name="README"/>
-        <include name="COPYING"/>
-        <include name="COPYING.LESSER"/>
-        <include name="COPYING.SCALA"/>
+        <include name="COPYING*"/>
       </fileset>
     </copy>
     <scaladoc
@@ -105,7 +103,7 @@
     </scaladoc>
   </target>
 
-  <target name="jar" depends="clean,build">
+  <target name="dist" depends="clean,testbatch,doc">
     <jar destfile="dist/${name}-${version}.jar">
       <fileset dir="bin">
         <include name="kiama/**"/>
@@ -123,9 +121,6 @@
         </section>
       </manifest>
     </jar>
-  </target>
-
-  <target name="jar-src" depends="clean,build">
     <jar destfile="dist/${name}-${version}-src.jar">
       <fileset dir="src">
         <include name="kiama/**"/>
