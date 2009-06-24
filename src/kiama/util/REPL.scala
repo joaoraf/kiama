@@ -30,8 +30,8 @@ import org.scalacheck._
 trait REPL {
     
     /**
-     * Read lines from standard input and pass non-null ones to process.
-     * Continue until process returns false. The command-line arguments
+     * Read lines from standard input and pass non-null ones to processline.
+     * Continue until processline returns false. The command-line arguments
      * are ignored.  Calls setup before entering the loop and prompt
      * each time input is about to be read.
      */
