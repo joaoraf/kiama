@@ -24,7 +24,11 @@ import kiama.util.ParsingREPL
 
 /**
  * A simple typed lambda calculus read-eval-print-loop that offers
- * choice from among multiple evaluation mechanisms.
+ * choice from among multiple evaluation mechanisms.  The lambda calculus
+ * supported and the strategies used are heavily based on "Building
+ * Interpreters with Rewriting Strategies", Eelco Dolstra and Eelco
+ * Visser, LDTA 2002 (published in Volume 65/3 of Electronic Notes in
+ * Theoretical Computer Science, Elsevier).
  */
 object Lambda extends ParsingREPL[AST.Exp] with Parser {
 

@@ -21,27 +21,30 @@
 package kiama.example.lambda2
 
 /**
- * Evaluation of lambda calculus using lazy evaluation with 
- * term-level substitution and arithmetic operations.
+ * Lazy evaluation of lambda calculus with parallel term-level substitution
+ * and arithmetic operations.
  */
-trait LazySubst extends EagerSubst {
+trait ParLazySubst extends ParEagerSubst {
   
 	import AST._
-
+ 
     /**
-     * Recursively try to lazily evaluate expressions in applied functions,
-     * the bodies of substitutions and the arguments of operations.
+     * Lazily evaluate within the expression then try to reduce the
+     * expression itself, repeating until no change.
+     */
+    override lazy val evals : Strategy =        
+        attempt (traverse) <* attempt (lambda <* evals)
+    
+    /**
+     * Recursively try to lazily evaluate expressions in applications
+     * and operations, but not within lambdas or substitutions.
      */
     override lazy val traverse : Strategy =
         rule {
 
             // In an application we need to traverse to just the function
             case App (e1, e2)       => App (eval (e1), e2)
-
-            // In a substitution we need to traverse to the bound expression
-            // as well as the body expression.
-            case Let (x, t, e1, e2) => Let (x, t, e1, eval (e2))
-
+            
             // In an operation we need to traverse to both sub-expressions.
             case Opn (op, e1, e2)   => Opn (op, eval (e1), eval (e2))
 
@@ -49,4 +52,4 @@ trait LazySubst extends EagerSubst {
     
 }
 
-class LazySubstEvaluator extends LazySubst
+class ParLazySubstEvaluator extends ParLazySubst

@@ -80,6 +80,20 @@ object AST {
     }
 
     /**
+     * Parallel bindings in body.
+     */
+    case class Letp (bindings : List[Bind], body : Exp) extends Exp {
+        override def toString = "(letp " + bindings.mkString ("; ") + " in " + body + ")"
+    }
+
+    /**
+     * A single binding from a set of parallel bindings (Letp).
+     */
+    case class Bind (name : Idn, tipe : Type, exp : Exp) {
+        override def toString = name + " : " + tipe + " = " + exp
+    }
+
+    /**
      * Types.
      */
     abstract class Type extends Product with Attributable

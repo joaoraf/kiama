@@ -33,7 +33,7 @@ trait EagerSubst extends ReduceSubst {
      * expression itself, repeating until no change.
      */
     override lazy val evals : Strategy =
-        attempt (traverse) <* attempt (lambda_es <* evals)
+        attempt (traverse) <* attempt (lambda <* evals)
     
     /**
      * Recursively try to eagerly evaluate expressions in applications,

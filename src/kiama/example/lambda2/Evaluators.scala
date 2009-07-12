@@ -36,7 +36,9 @@ object Evaluators {
     	     "reducesubst"    -> new ReduceSubstEvaluator,     // eval2
     	     "innermostsubst" -> new InnermostSubstEvaluator,  // eval3
     	     "eagersubst"     -> new EagerSubstEvaluator,      // eval4, eval5
-    	     "lazysubst"      -> new LazySubstEvaluator)       // eval6
+    	     "lazysubst"      -> new LazySubstEvaluator,       // eval6
+             "pareagersubst"  -> new ParEagerSubstEvaluator,   // eval7
+             "parlazysubst"   -> new ParLazySubstEvaluator)    // eval8
   
     /**
      * Return the names of the available evaluation mechanisms.

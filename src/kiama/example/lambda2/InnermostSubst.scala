@@ -32,7 +32,7 @@ trait InnermostSubst extends ReduceSubst {
      * Evaluate expressions starting with the innermost sub-expressions. 
      */
     override lazy val evals : Strategy =
-        innermost (lambda_es)
+        innermost (lambda)
 
 }
 

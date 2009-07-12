@@ -33,12 +33,12 @@ trait ReduceSubst extends Reduce {
      * operators anywhere.
      */
     override lazy val evals =
-        reduce (lambda_es)
+        reduce (lambda)
     
     /**
      * Reusable strategy for reduction with explicit term-level substitution.
      */
-    lazy val lambda_es =
+    lazy val lambda =
         beta + arithop + subsNum + subsVar + subsApp + subsLam + subsOpn
 
     /**
@@ -46,7 +46,7 @@ trait ReduceSubst extends Reduce {
      */
     override lazy val beta =
         rule {
-    	    case App (Lam (x, t, e1), e2) =>  Let (x, t, e2, e1)
+    	    case App (Lam (x, t, e1), e2) => Let (x, t, e2, e1)
     	}
       
     /**
