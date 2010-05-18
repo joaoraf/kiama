@@ -26,7 +26,6 @@ package org.kiama.example.lambda2
 object AST {
 
     import org.kiama.attribution.Attributable
-    import org.kiama.attribution.Attribution._
     import org.kiama.rewriting.Rewriter._
 
     /**
