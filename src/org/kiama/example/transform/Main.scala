@@ -45,7 +45,7 @@ class Driver extends Parser with RegexCompiler[Program] {
      * used for output.  Return true if everything worked, false
      * otherwise.  Here we process the first AST to compute the second
      * AST and print it, then perform semantic analysis on the second
-     * AST and print any errors.
+     * AST, print it and print any semantic errors.
      */
     def process (ast : Program, console : Console, emitter : Emitter) : Boolean = {
         resetmessages
