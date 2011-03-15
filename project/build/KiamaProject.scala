@@ -19,12 +19,13 @@
  */
 
 import sbt._
+import reaktor.scct.ScctProject
 
 /**
  * sbt project configuration for kiama
  */
 class KiamaProject (info: ProjectInfo) extends DefaultProject (info)
-    with posterous.Publish
+    with posterous.Publish with ScctProject
 {
     // Configure basic paths
     override def mainScalaSourcePath = "src"
