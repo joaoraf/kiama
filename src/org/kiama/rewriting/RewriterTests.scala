@@ -162,7 +162,7 @@ class RewriterTests extends FunSuite with Checkers with Generator {
     }
     
     test ("strategies that have no effect: some terms to themselves") {
-        val noopstmt = everywherebu (rule { case Asgn (s, e) => Asgn (s, e) })
+        val noopstmt = everywherebu (rule { case Asgn (v, e) => Asgn (v, e) })
         check ((t : Stmt) => noopstmt (t) == Some (t))
         check ((t : Exp) => noopstmt (t) == Some (t))
     
@@ -728,22 +728,22 @@ class RewriterTests extends FunSuite with Checkers with Generator {
         // { i = 10; count = 0; while (i) { count = count + 1; i = 1 + i; } }
         val p = 
             Seqn (List (
-                Asgn ("i", Num (10)),
-                Asgn ("count", Num (0)),
+                Asgn (Var ("i"), Num (10)),
+                Asgn (Var ("count"), Num (0)),
                 While (Var ("i"),
                     Seqn (List (
-                        Asgn ("count", Add (Var ("count"), Num (1))),
-                        Asgn ("i", Add (Num (1), Var ("i"))))))))
+                        Asgn (Var ("count"), Add (Var ("count"), Num (1))),
+                        Asgn (Var ("i"), Add (Num (1), Var ("i"))))))))
                         
         // { i = 0; count = 0; while (i) { count = bob + 1; i = 0 + i; } }
         val q = 
             Seqn (List (
-                Asgn ("i", Num (0)),
-                Asgn ("count", Num (0)),
+                Asgn (Var ("i"), Num (0)),
+                Asgn (Var ("count"), Num (0)),
                 While (Var ("i"),
                     Seqn (List (
-                        Asgn ("count", Add (Var ("bob"), Num (1))),
-                        Asgn ("i", Add (Num (0), Var ("i"))))))))
+                        Asgn (Var ("count"), Add (Var ("bob"), Num (1))),
+                        Asgn (Var ("i"), Add (Num (0), Var ("i"))))))))
 
         val incint = rule { case i : Int => i + 1 }
         val clearlist = rule { case _ => Nil }

@@ -25,26 +25,26 @@ import java.lang.Exception
 import scala.collection.mutable.HashMap
 import org.kiama.util.Emitter
 import org.kiama.util.PrettyPrinter
-import org.kiama.util.PrettyPrintable
 
 /**
  * A deterministic abstract state machine defined by its main rule and
  * called name.  Tracing messages are output to the given emitter, which
  * defaults to standard output.
  */
-abstract class Machine (val name : String, emitter : Emitter = new Emitter) {
+abstract class Machine (val name : String, emitter : Emitter = new Emitter) 
+        extends PrettyPrinter {
 
     /**
      * Debug flag. Set this to true in sub-classes or objects to obtain
      * tracing information during execution of the machine.
      */
-    def debug () = false
+    def debug = false
 
     /**
      * A scalar item of abstract state machine state holding a value of
      * type T and called sname.
      */
-    class State[T] (val sname : String) extends PrettyPrintable {
+    class State[T] (val sname : String) {
 
         /**
          * The value of this item of state.  None means undefined.
@@ -59,7 +59,7 @@ abstract class Machine (val name : String, emitter : Emitter = new Emitter) {
         /**
          * Make this state item undefined.
          */
-        def undefine () =
+        def undefine =
             _value = None
 
         /**
@@ -82,33 +82,6 @@ abstract class Machine (val name : String, emitter : Emitter = new Emitter) {
          */
         def := (t : T) {
             updates = new ScalarUpdate (this, t) :: updates
-            if (debug) {
-                val p = new PrettyPrinter
-                p.text (name)
-                p.text (".")
-                p.text (sname)
-                p.text (" := ")
-                p.indent {
-                    this.pretty (p, t)
-                }
-                emitter.emitln (p)
-	        }
-        }
-
-        /**
-         * Pretty printer for values of type T.
-         */
-        def pretty (p : PrettyPrinter, t : T) : Unit =
-            p.text (t.toString)
-
-        /**
-         * Pretty printer for the contents of this state object.
-         */
-        override def pretty (p : PrettyPrinter) {
-            _value match {
-                case None     => p.text ("** undefined **")
-                case Some (t) => pretty (p, t)
-            }
         }
 
         /**
@@ -129,13 +102,14 @@ abstract class Machine (val name : String, emitter : Emitter = new Emitter) {
         		_value == Some (t)
 
         /**
-         * Make a printable representation.
+         * Make a printable representation for the contents of this state
+         * object.
          */
         override def toString : String =
             _value match {
-                 case None     => "** undefined **"
-                 case Some (t) => t.toString
-            }
+                case None     => "** undefined **"
+                case Some (t) => t.toString
+             }
 
     }
 
@@ -148,7 +122,7 @@ abstract class Machine (val name : String, emitter : Emitter = new Emitter) {
     /**
      * Utility class for updaters for values of parameterised state.
      */
-    class ParamUpdater[T,U] (val state : ParamState[T,U], val t : T) extends PrettyPrintable {
+    class ParamUpdater[T,U] (val state : ParamState[T,U], val t : T) {
 
         /**
          * Update this item of state to the value u at parameter t.  The update
@@ -158,27 +132,7 @@ abstract class Machine (val name : String, emitter : Emitter = new Emitter) {
          */
         def := (u : U) = {
             updates = new ParamUpdate (state, t, u) :: updates
-            if (debug) {
-                val p = new PrettyPrinter
-                p.text (name)
-                p.text (".")
-                p.text (state.sname)
-                p.text ("(")
-                p.text (t.toString)
-                p.text (")")
-                p.text (" := ")
-                p.indent {
-                    this.pretty (p, u)
-                }
-                emitter.emitln (p)
-	        }
         }
-
-        /**
-         * Pretty printer for values of type U.
-         */
-        def pretty (p : PrettyPrinter, u : U) : Unit =
-            p.text (u.toString)
 
         /**
          * Equality on the underlying value.  If this state item is undefined
@@ -191,10 +145,12 @@ abstract class Machine (val name : String, emitter : Emitter = new Emitter) {
         		state.value (t) == u
 
         /**
-         * Make a printable representation.
+         * Make a printable representation of the value of the parameterised
+         * state item that would be updated.  Used particularly to access the
+         * value of a parameterised state item.
          */
         override def toString : String =
-        	state.value (t).toString
+            state.value (t).toString
 
     }
 
@@ -250,22 +206,6 @@ abstract class Machine (val name : String, emitter : Emitter = new Emitter) {
                 case Some (m) => m += ((t, u))
             }
 
-        /**
-         * Make a printable representation.
-         */
-        override def toString : String = {
-            val p : PrettyPrinter = new PrettyPrinter
-            p.text (name)
-            p.text (".")
-            p.text (psname)
-            p.text (" = ")
-            p.indent {
-                p.newline
-                this.pretty (p)
-            }
-            p.toString
-        }
-
     }
 
     /**
@@ -308,6 +248,11 @@ abstract class Machine (val name : String, emitter : Emitter = new Emitter) {
          */
         def perform {
             s.change (t)
+            if (debug) {
+                val d = text (name) <> char ('.') <> text (s.sname) <+>
+                        text (":=") </> nest (s.toDoc)
+                emitter.emitln (pretty (d))
+            }
         }
 
         /**
@@ -322,12 +267,6 @@ abstract class Machine (val name : String, emitter : Emitter = new Emitter) {
          */
         def value : Any = t
 
-        /**
-         * Make a printable representation.
-         */
-        override def toString : String =
-            s.sname + " := " + t
-
     }
 
     /**
@@ -341,6 +280,12 @@ abstract class Machine (val name : String, emitter : Emitter = new Emitter) {
          */
         def perform {
             s.change (t, u)
+            if (debug) {
+                val d = text (name) <> char ('.') <> text (s.sname) <>
+                            char ('(') <> t.toDoc <> char (')') <+>
+                            text (":=") </> nest (s.toDoc)
+                emitter.emitln (pretty (d))
+            }
         }
 
         /**
@@ -355,12 +300,6 @@ abstract class Machine (val name : String, emitter : Emitter = new Emitter) {
          */
         def value : Any = u
 
-        /**
-         * Make a printable representation.
-         */
-        override def toString : String =
-            s.sname + "(" + t + ") := " + u
-
     }
 
     /**
@@ -374,18 +313,18 @@ abstract class Machine (val name : String, emitter : Emitter = new Emitter) {
      * state updates will be performed after this routine returns.
      * Default: do nothing.
      */
-    def init () = { }
+    def init = { }
 
     /**
      * The rule to execute to run one step of this machine.
      */
-    def main ()
+    def main
 
     /**
      * Clean up after this machine.  This routine is called after the
      * machine terminates.  Default: do nothing.
      */
-    def finit () = { }
+    def finit = { }
 
     /**
      * Perform any pending updates, returning true if updates were
@@ -394,7 +333,7 @@ abstract class Machine (val name : String, emitter : Emitter = new Emitter) {
      * than once, it must be updated to the same value by all updates.
      * If updates are not consistent, the machine is aborted.
      */
-    def performUpdates () =
+    def performUpdates =
         if (updates isEmpty)
             false
         else {
@@ -409,7 +348,7 @@ abstract class Machine (val name : String, emitter : Emitter = new Emitter) {
                     m (k) = u.value
                 }
             }
-            // Actually perform the updaes
+            // Actually perform the updates
             updates.map (_.perform)
             true
         }
@@ -431,10 +370,9 @@ abstract class Machine (val name : String, emitter : Emitter = new Emitter) {
     def steps {
         var nsteps = 0
         do {
-            if (debug) {
+            if (debug)
                 emitter.emitln (name + " step " + nsteps)
-                nsteps += 1
-            }
+            nsteps += 1
         } while (step)
     }
 

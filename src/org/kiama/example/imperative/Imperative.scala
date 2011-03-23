@@ -32,6 +32,7 @@ import scala.util.parsing.combinator.RegexParsers
 object AST {
     
     import org.kiama.rewriting.Rewriter.{Strategy, rulefs, congruence}
+    import scala.util.parsing.input.Positional
 
     /**
      * Identifiers are represented as strings.
@@ -39,56 +40,48 @@ object AST {
     type Idn = String
 
     /**
-     * Simple interface for pretty-printing capabilities.
+     * Superclass of all imperative language tree node types.
      */
-    trait PrettyPrintable {
-
-        /**
-         * Pretty-print the object at the end of the given string builder.
-         */
-        def pretty (o : StringBuilder)
-
-    }
+    trait ImperativeNode extends Product with Positional
 
     /**
      * Expressions.
      */
-    abstract class Exp extends PrettyPrintable with Product {
+    abstract class Exp extends ImperativeNode {
 
         /**
          * The numeric value of the expression.
          */
-        def value () : Double
+        def value : Double
 
         /**
          * The set of all variable references in the expression.
          */
-        def vars () : Set[Idn] = Set ()
+        def vars : Set[Idn] = Set ()
 
         /**
          * The number of divisions by the constant zero in the expression.
          */
-        def divsbyzero () : Int = 0
+        def divsbyzero : Int = 0
 
         /**
          * The depth of the expression, i.e., the number of levels from the
          * root to the leaf values.
          */
-        def depth () : Int = 0
+        def depth : Int = 0
 
         /**
          * The number of additions of integer constants in the expression.
          */
-        def intadds () : Int = 0
+        def intadds : Int = 0
     }
 
     /**
      * Numeric expressions.
      */
     case class Num (d : Double) extends Exp {
-        override def value () = d
-        override def depth () = 2
-        def pretty (o : StringBuilder) = o.append (d)
+        override def value = d
+        override def depth = 2
     }
 
     /**
@@ -96,70 +89,57 @@ object AST {
      */
     case class Var (s : Idn) extends Exp {
         // Hack to make tests more interesting
-        override def value () = 3
-        override def vars () = Set (s)
-        override def depth () = 2
-        override def toString () = "Var(\"" + s + "\")"
-        def pretty (o : StringBuilder) = o.append (s)
+        override def value = 3
+        override def vars = Set (s)
+        override def depth = 2
+        override def toString = "Var(\"" + s + "\")"
     }
 
     /**
      * Unary negation expressions.
      */
     case class Neg (e : Exp) extends Exp {
-        override def value () = - e.value
-        override def vars () = e.vars
-        override def divsbyzero () = e.divsbyzero
-        override def depth () = 1 + e.depth
-        override def intadds () = e.intadds
-        def pretty (o : StringBuilder) = {
-            o.append ("(-"); e.pretty (o); o.append (')')
-        }
+        override def value = - e.value
+        override def vars = e.vars
+        override def divsbyzero = e.divsbyzero
+        override def depth = 1 + e.depth
+        override def intadds = e.intadds
     }
 
     /**
      * Binary expressions.
      */
     abstract class Binary (l : Exp, r : Exp) extends Exp {
-        override def vars () = l.vars ++ r.vars
-        override def divsbyzero () = l.divsbyzero + r.divsbyzero
-        override def depth () = 1 + (l.depth).max (r.depth)
-        override def intadds () = l.intadds + r.intadds
+        override def vars = l.vars ++ r.vars
+        override def divsbyzero = l.divsbyzero + r.divsbyzero
+        override def depth = 1 + (l.depth).max (r.depth)
+        override def intadds = l.intadds + r.intadds
     }
 
     /**
      * Addition expressions.
      */
     case class Add (l : Exp, r : Exp) extends Binary (l, r) {
-        override def value () = l.value + r.value
-        override def intadds () =
+        override def value = l.value + r.value
+        override def intadds =
             (l, r) match {
                 case (Num (_), Num (_)) => 1
                 case _                  => super.intadds
             }
-        def pretty (o : StringBuilder) = {
-            o.append ('('); l.pretty (o); o.append (" + "); r.pretty (o); o.append (')')
-        }
     }
 
     /**
      * Subtraction expressions.
      */
     case class Sub (l : Exp, r : Exp) extends Binary (l, r) {
-        override def value () = l.value - r.value
-        def pretty (o : StringBuilder) = {
-            o.append ('('); l.pretty (o); o.append (" - "); r.pretty (o); o.append (')')
-        }
+        override def value = l.value - r.value
     }
 
     /**
      * Multiplication expressions.
      */
     case class Mul (l : Exp, r : Exp) extends Binary (l, r) {
-        override def value () = l.value * r.value
-        def pretty (o : StringBuilder) = {
-            o.append ('('); l.pretty (o); o.append (" * "); r.pretty (o); o.append (')')
-        }
+        override def value = l.value * r.value
     }
 
     /**
@@ -167,66 +147,50 @@ object AST {
      */
     case class Div (l : Exp, r : Exp) extends Binary (l, r) {
         // Hack: no errors, so return zero for divide by zero
-        override def value () = if (r.value == 0) 0 else l.value / r.value
-        override def divsbyzero () =
+        override def value = if (r.value == 0) 0 else l.value / r.value
+        override def divsbyzero =
             l.divsbyzero + (r match {
                                 case Num (0) => 1
                                 case _       => r.divsbyzero
                             })
-        def pretty (o : StringBuilder) = {
-            o.append ('('); l.pretty (o); o.append (" / "); r.pretty (o); o.append (')')
-        }
     }
 
     /**
      * Statements.
      */
-    abstract class Stmt extends PrettyPrintable with Product {
+    abstract class Stmt extends ImperativeNode {
 
         /**
          * The set of all variable references in the statement.
          */
-        def vars () : Set[Idn] = Set ()
+        def vars : Set[Idn] = Set ()
 
     }
 
     /**
      * Empty statements.
      */
-    case class Null () extends Stmt {
-        def pretty (o : StringBuilder) = o.append (";\n")
-    }
+    case class Null () extends Stmt
 
     /**
      * Statement sequences.
      */
     case class Seqn (ss : Seq[Stmt]) extends Stmt {
-        override def vars () = Set (ss flatMap (_ vars) : _*)
-        def pretty (o : StringBuilder) = {
-            o.append ("{\n"); ss.foreach (_.pretty (o)); o.append ("}\n")
-        }
+        override def vars = Set (ss flatMap (_ vars) : _*)
     }
 
     /**
      * Assignment statements.
      */
-    case class Asgn (s : Idn, e : Exp) extends Stmt {
-        override def vars () = Set (s)
-        override def toString () = "Asgn(\"" + s + "\"," + e + ")"
-        def pretty (o : StringBuilder) = {
-            o.append (s); o.append (" = "); e.pretty (o); o.append (";\n")
-        }
+    case class Asgn (v : Var, e : Exp) extends Stmt {
+        override def vars = Set (v.s)
     }
 
     /**
      * While loops.
      */
     case class While (e : Exp, b : Stmt) extends Stmt {
-        override def vars () = e.vars ++ b.vars
-        def pretty (o : StringBuilder) = {
-            o.append ("while ("); e.pretty (o); o.append (")\n");
-            b.pretty (o);
-        }
+        override def vars = e.vars ++ b.vars
     }
 
     // Congruences
@@ -316,7 +280,7 @@ object ASTNonCase {
                 case _ =>
                     illegalArgs ("Num", "Double", cs)
             }
-        override def toString () = "Num(" + d + ")"
+        override def toString = "Num(" + d + ")"
     }
 
     class Var (val s : Idn) extends Exp {
@@ -329,7 +293,7 @@ object ASTNonCase {
                 case _ =>
                     illegalArgs ("Var", "Idn", cs)
             }
-        override def toString () = "Var(" + s + ")"
+        override def toString = "Var(" + s + ")"
     }
 
     class Neg (val e : Exp) extends Exp {
@@ -342,7 +306,7 @@ object ASTNonCase {
                 case _ =>
                     illegalArgs ("Neg", "Exp", cs)
             }
-        override def toString () = "Neg(" + e + ")"
+        override def toString = "Neg(" + e + ")"
     }
 
     abstract class Binary (val l : Exp, val r : Exp) extends Exp {
@@ -358,7 +322,7 @@ object ASTNonCase {
                 case _ =>
                     illegalArgs ("Add", "Exp, Exp", cs)
             }
-        override def toString () = "Add(" + l + "," + r + ")"
+        override def toString = "Add(" + l + "," + r + ")"
     }
     
     class Sub (l : Exp, r : Exp) extends Binary (l, r) {
@@ -369,7 +333,7 @@ object ASTNonCase {
                 case _ =>
                     illegalArgs ("Sub", "Exp, Exp", cs)
             }
-        override def toString () = "Sub(" + l + "," + r + ")"
+        override def toString = "Sub(" + l + "," + r + ")"
     }
     
     class Mul (l : Exp, r : Exp) extends Binary (l, r) {
@@ -380,7 +344,7 @@ object ASTNonCase {
                 case _ =>
                     illegalArgs ("Mul", "Exp, Exp", cs)
             }
-        override def toString () = "Mul(" + l + "," + r + ")"
+        override def toString = "Mul(" + l + "," + r + ")"
     }
     
     class Div (l : Exp, r : Exp) extends Binary (l, r) {
@@ -391,7 +355,7 @@ object ASTNonCase {
                 case _ =>
                     illegalArgs ("Div", "Exp, Exp", cs)
             }
-        override def toString () = "Div(" + l + "," + r + ")"
+        override def toString = "Div(" + l + "," + r + ")"
     }
 
 }
@@ -399,18 +363,40 @@ object ASTNonCase {
 /**
  * AST pretty-printing.
  */
-object PrettyPrinter {
+object PrettyPrinter extends org.kiama.util.PrettyPrinter {
 
     import AST._
 
     /**
-     * Return a pretty-printed version of t.
+     * Return a pretty-printed version of a node.
      */
-    def pretty[T <: PrettyPrintable] (t : T) : String = {
-        val buffer = new StringBuilder
-        t.pretty (buffer)
-        buffer.toString
-    }
+    def pretty (t : ImperativeNode) : String =
+        super.pretty (show (t))
+
+    /**
+     * Convert an imperative node to a pretty-printing document in
+     * fully-parenthesised C style.
+     */
+    def show (t : ImperativeNode) : Doc =
+        t match {
+            case Num (d)      => value (d)
+            case Var (s)      => text (s)
+            case Neg (e)      => parens (text ("-") <> show (e))
+            case Add (l, r)   => showbin (l, "+", r)
+            case Sub (l, r)   => showbin (l, "-", r)
+            case Mul (l, r)   => showbin (l, "*", r)
+            case Div (l, r)   => showbin (l, "/", r)
+            case Null ()      => semi
+            case Seqn (ss)    => braces (nest (line <> ssep (ss map show, line)) <> line)
+            case Asgn (v, e)  => show (v) <+> text ("=") <+> show (e) <> semi
+            case While (e, b) => text ("while") <+> parens (show (e)) <> nest (line <> show (b))
+        }
+
+    /**
+     * Return a pretty-printing document for an instance of a binary expression.
+     */
+    def showbin (l : ImperativeNode, op : String, r : ImperativeNode) : Doc =
+        parens (show (l) <+> text (op) <+> show (r))
 
 }
 
@@ -428,7 +414,7 @@ trait Parser extends RegexParsers with PackratParsers {
         ";" ^^^ Null () | sequence | asgnStmt | whileStmt
 
     lazy val asgnStmt : PackratParser[Asgn] =
-        idn ~ ("=" ~> exp) <~ ";" ^^ { case s ~ e => Asgn (s, e) }
+        variable ~ ("=" ~> exp) <~ ";" ^^ { case v ~ e => Asgn (v, e) }
 
     lazy val whileStmt : PackratParser[While] =
         ("while" ~> "(" ~> exp <~ ")") ~ stmt ^^ { case e ~ b => While (e, b) }
@@ -447,7 +433,7 @@ trait Parser extends RegexParsers with PackratParsers {
         factor
 
     lazy val factor : PackratParser[Exp] =
-        double | integer | variable | "-" ~> exp | "(" ~> exp <~ ")"
+        double | integer | variable | "-" ~> exp ^^ Neg | "(" ~> exp <~ ")"
 
     lazy val double : PackratParser[Num] =
         """[0-9]+\.[0-9]+""" ^^ (s => Num (s.toDouble))
@@ -524,7 +510,7 @@ trait Generator {
         Arbitrary { Gen.sized (sz => genSeqn (sz)) }
 
     def genAsgn (sz : Int) =
-        for { i <- genIdn; e <- genExp (sz-1) } yield Asgn (i, e)
+        for { v <- genVar; e <- genExp (sz-1) } yield Asgn (v, e)
 
     implicit def arbAsgn : Arbitrary[Asgn] =
         Arbitrary { Gen.sized (sz => genAsgn (sz)) }
@@ -570,6 +556,7 @@ object Imperative extends ParsingREPL[AST.Stmt] with Parser {
 
     def process (s : AST.Stmt) {
         println (s)
+        println (PrettyPrinter.pretty (s))
     }
 
 }

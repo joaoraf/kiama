@@ -2,6 +2,7 @@
  * This file is part of Kiama.
  *
  * Copyright (C) 2010-2011 Dominic R B Verity, Macquarie University.
+ * Copyright (C) 2011 Anthony M Sloane, Macquarie University.
  *
  * Kiama is free software: you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License as published by the
@@ -25,15 +26,13 @@ package example.iswim.secd
  * Add mutable, heap allocated values to a SECD machine
  */
 
-import org.kiama.util.PrettyPrinter
-
 object HeapOps {
 
 	import SECDBase._
 
 	/**
 	 * Extra bytecode instructions for this extension
-     * Allocate, access and update values in the heap
+     * Allocate, access and update values in the heap 
      */
     case class Alloc() extends Instruction
     case class Get() extends Instruction
@@ -53,6 +52,7 @@ trait HeapOps extends SECDBase {
 
     import HeapOps._
     import SECDBase._
+    import org.kiama.example.iswim.driver.PrettyPrinter._
 
  	/**
  	 * Extra value types which come with this extension.
@@ -60,11 +60,11 @@ trait HeapOps extends SECDBase {
      * Reference values
      */
     case class RefValue() extends Value {
-        override def hashCode () = super.hashCode
+        override def hashCode = super.hashCode
         override def equals(that : Any) = super.equals(that)
-        override def toString () = "RefValue@" ++ hashCode.toHexString
+        override def toString = "RefValue@" ++ hashCode.toHexString
     	lazy val content = new State[Value]("heap chunk id @" + hashCode.toHexString) {
-    	    override def pretty(p : PrettyPrinter, v : Value) = v.pretty(p)
+    	    def toDoc = value.toDoc
     	}
     	def getType : TypeValue = RefTypeValue
     }
@@ -73,9 +73,9 @@ trait HeapOps extends SECDBase {
      * Extend the partial function to evaluate a single instruction
      * to handle our new instructions.
      */
-	override def evalInst : Code ==> Unit = super.evalInst orElse {
+	override def evalInst : PartialFunction[Code,Unit] = super.evalInst orElse {
 		// Instructions for manipulating heap allocated mutable values.
-        case Alloc() :: next =>
+        case Alloc() :: next => 
             val r = RefValue()
             r.content := EmptyValue
             stack := r :: stack
@@ -83,16 +83,16 @@ trait HeapOps extends SECDBase {
         case Get() :: next => (stack : Stack) match {
             case (r @ RefValue()) :: tail =>
                 stack := r.content :: tail
-                control := next
-            case _ :: _ => raiseException(TypeError)
-            case _ => raiseException(StackUnderflow)
+                control := next 
+            case _ :: _ => raiseException(TypeError) 
+            case _ => raiseException(StackUnderflow) 
         }
         case Put() :: next => (stack : Stack) match {
             case v :: (r @ RefValue()) :: tail =>
                 r.content := v
                 stack := tail
-                control := next
-            case _ :: _ :: _ => raiseException(TypeError)
+                control := next 
+            case _ :: _ :: _ => raiseException(TypeError) 
             case _ => raiseException(StackUnderflow)
         }
 	}

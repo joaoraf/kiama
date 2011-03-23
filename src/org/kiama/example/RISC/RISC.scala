@@ -111,7 +111,11 @@ class RISC (code : Code, console : Console, emitter : Emitter)
         catch {
             case e =>
                 emitter.emitln ("Exception " + e + " at " + instr)
+                emitter.emitln ("RISC.R = ")
+                emitter.emit ("    ")
                 emitter.emitln (R)
+                emitter.emitln ("RISC.Mem = ")
+                emitter.emit ("    ")
                 emitter.emitln (Mem)
                 halt := true
         }

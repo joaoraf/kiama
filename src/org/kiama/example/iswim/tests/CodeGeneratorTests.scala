@@ -2,6 +2,7 @@
  * This file is part of Kiama.
  *
  * Copyright (C) 2010-2011 Dominic R B Verity, Macquarie University.
+ * Copyright (C) 2011 Anthony M Sloane, Macquarie University.
  *
  * Kiama is free software: you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License as published by the
@@ -28,12 +29,16 @@ package example.iswim.tests
 import org.junit.runner.RunWith
 import org.scalatest.FunSuite
 import org.scalatest.junit.JUnitRunner
-import org.kiama.util.PrettyPrinter
 import org.kiama.example.iswim.compiler._
 import org.kiama.example.iswim.secd._
 
 @RunWith(classOf[JUnitRunner])
 class CodeGeneratorTests extends FunSuite with CodeGenerator with SemanticAnalysis with Parser {
+
+    import Syntax._
+
+    import org.kiama.example.iswim.driver.PrettyPrinter._
+    import org.kiama.util.Messaging._
 
     import SECDBase._
     import IntegerOps._
@@ -270,69 +275,48 @@ class CodeGeneratorTests extends FunSuite with CodeGenerator with SemanticAnalys
         assert(prog.successful)
         assert((prog.get)->isSemanticallyCorrect)
         val result : CodeSegment = code(prog.get)
-        val p : PrettyPrinter = new PrettyPrinter
-        result.pretty(p)
-        assert(p.toString === """CodeSegment(
-1:  PushInt(1),
-2:  PushInt(2),
-3:  MkRecord(2),
-4:  Dup(1),
-5:  GetType(),
-6:  Dup(1),
-7:  PushType(RecordTypeValue),
-8:  Equals(),
-9:  Swap(1,1),
-10: PushType(EmptyTypeValue),
-11: Equals(),
-12: Test(
+        val p = pretty(result)
+        assert(p === """CodeSegment(
+    1: PushInt(1),
+    2: PushInt(2),
+    3: MkRecord(2),
+    4: Dup(1),
+    5: GetType(),
+    6: Dup(1),
+    7: PushType(RecordTypeValue),
+    8: Equals(),
+    9: Swap(1,1),
+    10: PushType(EmptyTypeValue),
+    11: Equals(),
+    12: Test(
+        CodeSegment(13: Pop(1),14: PushInt(0)),
         CodeSegment(
-13:         Pop(1),
-14:         PushInt(0)
-        ),
+            15: Test(
+                CodeSegment(16: Dup(1),17: Fields()),
+                CodeSegment(18: PushInt(1))))),
+    19: Dup(1),
+    20: PushInt(3),
+    21: Equals(),
+    22: Test(
         CodeSegment(
-15:         Test(
-                CodeSegment(
-16:                 Dup(1),
-17:                 Fields()
-                ),
-                CodeSegment(
-18:                 PushInt(1)
-                )
-            )
-        )
-    ),
-19: Dup(1),
-20: PushInt(3),
-21: Equals(),
-22: Test(
+            23: Pop(1),
+            24: UnpackRecord(),
+            25: Enter(List(x, y, z)),
+            26: Lookup(x),
+            27: Lookup(y),
+            28: Mult(),
+            29: Lookup(z),
+            30: Add(),
+            31: Exit()),
         CodeSegment(
-23:         Pop(1),
-24:         UnpackRecord(),
-25:         Enter(List(x, y, z)),
-26:         Lookup(x),
-27:         Lookup(y),
-28:         Mult(),
-29:         Lookup(z),
-30:         Add(),
-31:         Exit()
-        ),
-        CodeSegment(
-32:         Dup(1),
-33:         PushInt(0),
-34:         Equals(),
-35:         Test(
+            32: Dup(1),
+            33: PushInt(0),
+            34: Equals(),
+            35: Test(
+                CodeSegment(36: Pop(2),37: PushInt(20)),
                 CodeSegment(
-36:                 Pop(2),
-37:                 PushInt(20)
-                ),
-                CodeSegment(
-38:                 PushMachineException(MachineExceptionValue: match error, value not matched at <undefined position>),
-39:                 RaiseException()
-                )
-            )
-        )
-    )
-)""")
+                    38: PushMachineException(MachineExceptionValue: match error, value not matched at <undefined position>),
+                    39: RaiseException())))))""")
     }
 
     test("compile a simple, but complete, program") {
@@ -340,7 +324,7 @@ class CodeGeneratorTests extends FunSuite with CodeGenerator with SemanticAnalys
         /*
          * Title:       Fibonacci fun
          * Description: A very simple imperative Fibonacci function with driver.
-         * Copyright:   (C) 2010-2011 Dominic Verity, Macquarie University
+         * Copyright:   (c) 2010-2011 Dominic Verity, Macquarie University
          */
 
         // declare preloaded primitives
@@ -370,99 +354,88 @@ class CodeGeneratorTests extends FunSuite with CodeGenerator with SemanticAnalys
         assert(prog.successful)
         assert((prog.get)->isSemanticallyCorrect)
         val result : CodeSegment = code(prog.get)
-        val p : PrettyPrinter = new PrettyPrinter
-        result.pretty(p)
-        assert(p.toString === """CodeSegment(
-1:  BindPrims(List(write, read, fields, type)),
-2:  MkClosures(
+        val p = pretty(result)
+        assert(p === """CodeSegment(
+    1: BindPrims(List(write, read, fields, type)),
+    2: MkClosures(
         FunctionSpec(
             fib,
             n,
             CodeSegment(
-3:              Alloc(),
-4:              Dup(1),
-5:              PushInt(0),
-6:              Put(),
-7:              Alloc(),
-8:              Dup(1),
-9:              PushInt(1),
-10:             Put(),
-11:             Alloc(),
-12:             Dup(1),
-13:             PushInt(0),
-14:             PushInt(1),
-15:             Sub(),
-16:             Put(),
-17:             Enter(List(r1, r2, r3)),
-18:             MkClosures(
+                3: Alloc(),
+                4: Dup(1),
+                5: PushInt(0),
+                6: Put(),
+                7: Alloc(),
+                8: Dup(1),
+                9: PushInt(1),
+                10: Put(),
+                11: Alloc(),
+                12: Dup(1),
+                13: PushInt(0),
+                14: PushInt(1),
+                15: Sub(),
+                16: Put(),
+                17: Enter(List(r1, r2, r3)),
+                18: MkClosures(
                     FunctionSpec(
                         f,
                         m,
                         CodeSegment(
-19:                         Lookup(m),
-20:                         PushInt(0),
-21:                         Equals(),
-22:                         Test(
+                            19: Lookup(m),
+                            20: PushInt(0),
+                            21: Equals(),
+                            22: Test(
+                                CodeSegment(23: Lookup(r1),24: Get()),
                                 CodeSegment(
-23:                                 Lookup(r1),
-24:                                 Get()
-                                ),
-                                CodeSegment(
-25:                                 Lookup(r3),
-26:                                 Lookup(r1),
-27:                                 Get(),
-28:                                 Lookup(r2),
-29:                                 Get(),
-30:                                 Add(),
-31:                                 Dup(1),
-32:                                 Swap(1,2),
-33:                                 Put(),
-34:                                 Pop(1),
-35:                                 Lookup(r1),
-36:                                 Lookup(r2),
-37:                                 Get(),
-38:                                 Dup(1),
-39:                                 Swap(1,2),
-40:                                 Put(),
-41:                                 Pop(1),
-42:                                 Lookup(r2),
-43:                                 Lookup(r3),
-44:                                 Get(),
-45:                                 Dup(1),
-46:                                 Swap(1,2),
-47:                                 Put(),
-48:                                 Pop(1),
-49:                                 Lookup(m),
-50:                                 PushInt(1),
-51:                                 Sub(),
-52:                                 Lookup(f),
-53:                                 App()
-                                )
-                            )
-                        )
-                    )
-                ),
-54:             Enter(List(f)),
-55:             Lookup(n),
-56:             Lookup(f),
-57:             App(),
-58:             Exit(),
-59:             Exit()
-            )
-        )
-    ),
-60: Enter(List(fib)),
-61: PushInt(200),
-62: Lookup(fib),
-63: App(),
-64: Lookup(write),
-65: App(),
-66: Pop(1),
-67: PushString(\n),
-68: Lookup(write),
-69: App(),
-70: Exit(),
-71: Exit()
-)""")
+                                    25: Lookup(r3),
+                                    26: Lookup(r1),
+                                    27: Get(),
+                                    28: Lookup(r2),
+                                    29: Get(),
+                                    30: Add(),
+                                    31: Dup(1),
+                                    32: Swap(1,2),
+                                    33: Put(),
+                                    34: Pop(1),
+                                    35: Lookup(r1),
+                                    36: Lookup(r2),
+                                    37: Get(),
+                                    38: Dup(1),
+                                    39: Swap(1,2),
+                                    40: Put(),
+                                    41: Pop(1),
+                                    42: Lookup(r2),
+                                    43: Lookup(r3),
+                                    44: Get(),
+                                    45: Dup(1),
+                                    46: Swap(1,2),
+                                    47: Put(),
+                                    48: Pop(1),
+                                    49: Lookup(m),
+                                    50: PushInt(1),
+                                    51: Sub(),
+                                    52: Lookup(f),
+                                    53: App()))))),
+                54: Enter(List(f)),
+                55: Lookup(n),
+                56: Lookup(f),
+                57: App(),
+                58: Exit(),
+                59: Exit()))),
+    60: Enter(List(fib)),
+    61: PushInt(200),
+    62: Lookup(fib),
+    63: App(),
+    64: Lookup(write),
+    65: App(),
+    66: Pop(1),
+    67: PushString(\n),
+    68: Lookup(write),
+    69: App(),
+    70: Exit(),
+    71: Exit())""")
    }
+    
 }
+

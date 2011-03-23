@@ -2,6 +2,7 @@
  * This file is part of Kiama.
  *
  * Copyright (C) 2010-2011 Dominic R B Verity, Macquarie University.
+ * Copyright (C) 2011 Anthony M Sloane, Macquarie University.
  *
  * Kiama is free software: you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License as published by the
@@ -30,6 +31,7 @@ import org.kiama.util.PrettyPrinter
 object BooleanOps {
 
 	import SECDBase._
+    import org.kiama.example.iswim.driver.PrettyPrinter._
 
 	/**
 	 * Extra bytecode instructions for this extension
@@ -38,21 +40,13 @@ object BooleanOps {
     case class PushTrue() extends Instruction
     case class PushFalse() extends Instruction
     case class Test(ct : CodeSegment, ce : CodeSegment) extends Instruction {
-        override def pretty(p : PrettyPrinter) = {
-            p.text("Test(")
-            p.indent {
-                p.newline
-                ct.pretty(p)
-                p.text(",")
-                p.newline
-                ce.pretty(p)
-            }
-            p.newline
-            p.text(")")
-        }
+        override def toDoc : Doc =
+            text("Test") <>
+                parens(nest(line <> ct.toDoc <> char(',') <>
+                            line <> ce.toDoc))
     }
     case class Equals() extends Instruction
-
+    
     /**
      * New type values for this extension
      */
@@ -87,21 +81,21 @@ trait BooleanOps extends SECDBase {
      * Extend the partial function to evaluate a single instruction
      * to handle our new instructions.
      */
-	override def evalInst : Code ==> Unit = super.evalInst orElse {
+	override def evalInst : PartialFunction[Code,Unit] = super.evalInst orElse {
 		// Push constant boolean values on the stack.
         case PushTrue() :: next =>
             stack := TrueValue :: stack
             control := next
-        case PushFalse() :: next =>
+        case PushFalse() :: next => 
             stack := FalseValue :: stack
             control := next
         // Conditional branch.
-        case Test(CodeSegment(ct), CodeSegment(ce)) :: next =>
+        case Test(CodeSegment(ct), CodeSegment(ce)) :: next => 
             (stack : Stack) match {
-                case TrueValue :: tail =>
+                case TrueValue :: tail => 
                     stack := tail
                     control := ct ++ next
-                case FalseValue :: tail =>
+                case FalseValue :: tail => 
                     stack := tail
                     control := ce ++ next
                 case _ :: _ => raiseException(TypeError)
@@ -109,12 +103,12 @@ trait BooleanOps extends SECDBase {
             }
         // Equality test on values.
         case Equals() :: next => (stack : Stack) match {
-            case val1 :: val2 :: tail =>
+            case val1 :: val2 :: tail => 
                 if (val1 == val2)
                     stack := TrueValue :: tail
-                else
+                else 
                     stack := FalseValue :: tail
-                control := next
+                control := next 
             case _ => raiseException(StackUnderflow)
         }
 	}
