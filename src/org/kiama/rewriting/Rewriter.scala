@@ -335,14 +335,8 @@ object Rewriter {
      * Make an arbitrary value into a term child, checking that it worked properly.
      * Object references will be returned unchanged; other values will be boxed.
      */
-    private def makechild (child : Any) : AnyRef = {
-        try {
-            return child.asInstanceOf[AnyRef]
-        } catch {
-            case e : ClassCastException =>
-                sys.error ("makechild: can't cast child: " + child + " " + e)
-        }
-    }
+    private def makechild (child : Any) : AnyRef =
+        child.asInstanceOf[AnyRef]
 
     /**
      * Traversal to a single child.  Construct a strategy that applies s to
@@ -350,8 +344,10 @@ object Rewriter {
      * the ith child producing t, then succeed, forming a new term that is the
      * same as the original term except that the ith child is now t.  If s fails
      * on the ith child or the subject term does not have an ith child, then fail.
-     * child (i, s) is equivalent to Stratego's i(s) operator.  This operation
-     * works on instances of Product or finite Seq values.
+     * child (i, s) is equivalent to Stratego's i(s) operator.  If s succeeds on
+     * the ith child producing the same term (by eq for references and by == for
+     * other values), then the overall strategy returns the subject term.
+     * This operation works for instances of Product or finite Seq values.  
      */
     def child (i : Int, s : Strategy) : Strategy =
         new Strategy {
@@ -368,17 +364,19 @@ object Rewriter {
                     None
                 } else {
                     val ct = p.productElement (i-1)
-                    val newchildren = new Array[AnyRef](numchildren)
-                    for (j <- 0 until numchildren)
-                        newchildren (j) = makechild (p.productElement (j))
                     s (ct) match {
+                        case Some (ti) if (same (ct, ti)) =>
+                            Some (p)
                         case Some (ti) =>
+                            val newchildren = new Array[AnyRef](numchildren)
+                            for (j <- 0 until numchildren)
+                                newchildren (j) = makechild (p.productElement (j))
                             newchildren (i-1) = makechild (ti)
-                        case None      =>
-                            return None
+                            val ret = dup (p, newchildren)
+                            Some (ret)
+                        case None =>
+                            None
                     }
-                    val ret = dup (p, newchildren)
-                    Some (ret)
                 }
             }
             
@@ -388,21 +386,36 @@ object Rewriter {
                 if ((i < 1) || (i > numchildren)) {
                     None
                 } else {
-                    val b = cbf (t.repr)
-                    b.sizeHint (t)
-                    for (j <- 0 until i - 1)
-                        b += t (j)
-                    s (t (i - 1)) match {
+                    val ct = t (i - 1)
+                    s (ct) match {
+                        case Some (ti) if (same (ct, ti)) =>
+                            Some (t)
                         case Some (ti) =>
-                             b += ti
-                        case None      =>
-                            return None
+                            val b = cbf (t.repr)
+                            b.sizeHint (t)
+                            for (j <- 0 until i - 1)
+                                b += t (j)
+                            b += ti
+                            for (j <- i until numchildren)
+                                b += t (j)
+                            Some (b.result)
+                        case None =>
+                            None
                     }
-                    for (j <- i until numchildren)
-                        b += t (j)
-                    Some (b.result)
                 }
             }
+        }
+
+    /**
+     * Compare two arbitrary values.  If they are both references, use 
+     * reference equality, otherwise use value equality.
+     */
+    def same (v1 : Any, v2 : Any) : Boolean =
+        (v1, v2) match {
+            case (r1 : AnyRef, r2: AnyRef) =>
+                r1 eq r2
+            case _ =>
+                v1 == v2
         }
 
     /**
@@ -410,8 +423,11 @@ object Rewriter {
      * term children of the subject term in left-to-right order.  If s succeeds
      * on all of the children, then succeed, forming a new term from the constructor
      * of the original term and the result of s for each child.  If s fails on any
-     * child, fail. If there are no children, succeed.  This operation works on
-     * instances of Product or finite Traversable values.
+     * child, fail. If there are no children, succeed.  If s succeeds on all
+     * children producing the same terms (by eq for references and by == for
+     * other values), then the overall strategy returns the subject term.
+     * This operation works on finite Rewritable, Product, Map and Traversable
+     * values, in that order.
      */
     def all (s : => Strategy) : Strategy =
         new Strategy {
@@ -430,17 +446,23 @@ object Rewriter {
                     Some (p)
                 } else {
                     val newchildren = new Array[AnyRef](numchildren)
+                    var changed = false
                     for (i <- 0 until numchildren) {
                         val ct = p.productElement (i)
                         s (ct) match {
                             case Some (ti) =>
                                 newchildren (i) = makechild (ti)
-                            case None      =>
+                                if (!same (ct, ti))
+                                    changed = true
+                            case None =>
                                 return None
                         }
                     }
-                    val ret = dup (p, newchildren)
-                    Some (ret)
+                    if (changed) {
+                        val ret = dup (p, newchildren)
+                        Some (ret)
+                    } else
+                        Some (p)
                 }
             }
                 
@@ -451,17 +473,23 @@ object Rewriter {
                 } else {
                     val children = r.deconstruct
                     val newchildren = new Array[Any](numchildren)
+                    var changed = false
                     for (i <- 0 until numchildren) {
                         val ct = children (i)
                         s (ct) match {
                             case Some (ti) =>
                                 newchildren (i) = makechild (ti)
-                            case None      =>
+                                if (!same (ct, ti))
+                                    changed = true
+                            case None =>
                                 return None
                         }
                     }
-                    val ret = r.reconstruct (newchildren)
-                    Some (ret)
+                    if (changed) {
+                        val ret = r.reconstruct (newchildren)
+                        Some (ret)
+                    } else
+                        Some (r)
                 }
             }
 
@@ -471,15 +499,21 @@ object Rewriter {
                     Some (t)
                 else {
                     val b = cbf (t.repr)
+                    var changed = false
                     b.sizeHint (t)
                     for (ct <- t)
                         s (ct) match {
                             case Some (ti) =>
                                 b += ti
+                                if (!same (ct, ti))
+                                    changed = true
                             case None =>
                                 return None
                         }
-                    Some (b.result)
+                    if (changed)
+                        Some (b.result)
+                    else
+                        Some (t)
                 }
 
             private def all[CC[V,W] <: Map[V,W] with MapLike[V,W,CC[V,W]]] (t : CC[Term,Term])
@@ -488,15 +522,21 @@ object Rewriter {
                     Some (t)
                 else {
                     val b = cbf (t.repr)
+                    var changed = false
                     b.sizeHint (t)
                     for (ct <- t)
                         s (ct) match {
-                            case Some ((tix, tiy)) =>
-                                b += ((tix, tiy))
+                            case Some (ti @ (tix,tiy)) =>
+                                b += ti
+                                if (!same (ct, ti))
+                                    changed = true
                             case None =>
                                 return None
                         }
-                    Some (b.result)
+                    if (changed)
+                        Some (b.result)
+                    else
+                        Some (t)
                 }
         }
 
@@ -507,8 +547,11 @@ object Rewriter {
      * succeed, forming a new term from the constructor of the original term and
      * the original children, except that c is replaced by the result of applying
      * s to c.  In the event that the strategy fails on all children, then fail.
-     * If there are no children, fail.  This operation works on instances of
-     * Product or finite Traversable values.
+     * If there are no children, fail.  If s succeeds on the one child producing
+     * the same term (by eq for references and by == for other values), then
+     * the overall strategy returns the subject term.
+     * This operation works on instances of finite Rewritable, Product, Map and
+     * Traversable values, in that order.
      */
     def one (s : => Strategy) : Strategy =
         new Strategy {
@@ -526,7 +569,9 @@ object Rewriter {
                 for (i <- 0 until numchildren) {
                     val ct = p.productElement (i)
                     s (ct) match {
-                        case Some (ti) => {
+                        case Some (ti) if (same (ct, ti)) =>
+                            return Some (p)
+                        case Some (ti) =>
                             val newchildren = new Array[AnyRef] (numchildren)
                             for (j <- 0 until i)
                                 newchildren (j) = makechild (p.productElement (j))
@@ -535,7 +580,6 @@ object Rewriter {
                                 newchildren (j) = makechild (p.productElement (j))
                             val ret = dup (p, newchildren)
                             return Some (ret)
-                        }
                         case None =>
                             // Do nothing
                     }
@@ -549,7 +593,9 @@ object Rewriter {
                 for (i <- 0 until numchildren) {
                     val ct = children (i)
                     s (ct) match {
-                        case Some (ti) => {
+                        case Some (ti) if (same (ct, ti)) =>
+                            return Some (r)
+                        case Some (ti) =>
                             val newchildren = new Array[Any] (numchildren)
                             for (j <- 0 until i)
                                 newchildren (j) = makechild (children (j))
@@ -558,7 +604,6 @@ object Rewriter {
                                 newchildren (j) = makechild (children (j))
                             val ret = r.reconstruct (newchildren)
                             return Some (ret)
-                        }
                         case None =>
                             // Do nothing
                     }
@@ -574,6 +619,8 @@ object Rewriter {
                 for (ct <- t)
                     if (add)
                         s (ct) match {
+                            case Some (ti) if same (ct, ti) =>
+                                return Some (t)
                             case Some (ti) =>
                                 b += ti
                                 add = false
@@ -596,8 +643,10 @@ object Rewriter {
                 for (ct <- t)
                     if (add)
                         s (ct) match {
-                            case Some ((tix, tiy)) =>
-                                b += ((tix, tiy))
+                            case Some (ti @ (tix,tiy)) if (same (ct, ti)) =>
+                                return Some (t)
+                            case Some (ti @ (tix, tiy)) =>
+                                b += ti
                                 add = false
                             case None =>
                                 b += ct
@@ -619,8 +668,11 @@ object Rewriter {
      * forming a new term from the constructor of the original term and the result
      * of s for each succeeding child, with other children unchanged.  In the event
      * that the strategy fails on all children, then fail. If there are no 
-     * children, fail.  This operation works on instances of Product or finite
-     * Traversable values.
+     * children, fail.  If s succeeds on children producing the same terms (by eq
+     * for references and by == for other values), then the overall strategy
+     * returns the subject term.
+     * This operation works on instances of finite Rewritable, Product, Map and
+     * Traversable values, in that order.
      */
     def some (s : => Strategy) : Strategy =
         new Strategy {
@@ -640,22 +692,28 @@ object Rewriter {
                 } else {
                     val newchildren = new Array[AnyRef](numchildren)
                     var success = false
+                    var changed = false
                     for (i <- 0 until numchildren) {
                         val ct = p.productElement (i)
                         s (ct) match {
                             case Some (ti) =>
                                 newchildren (i) = makechild (ti)
+                                if (!same (ct, ti))
+                                    changed = true
                                 success = true
                             case None =>
                                 newchildren (i) = makechild (ct)
                         }
                     }
-                    if (success) {
-                        val ret = dup (p, newchildren)
-                        Some (ret)
-                    } else {
+                    if (success)
+                        if (changed) {
+                            val ret = dup (p, newchildren)
+                            Some (ret)
+                        } else {
+                            Some (p)
+                        }
+                    else
                         None
-                    }
                 }
             }
 
@@ -667,22 +725,28 @@ object Rewriter {
                     val children = r.deconstruct
                     val newchildren = new Array[Any](numchildren)
                     var success = false
+                    var changed = false
                     for (i <- 0 until numchildren) {
                         val ct = children (i)
                         s (ct) match {
                             case Some (ti) =>
                                 newchildren (i) = makechild (ti)
+                                if (!same (ct, ti))
+                                    changed = true
                                 success = true
                             case None =>
                                 newchildren (i) = makechild (ct)
                         }
                     }
-                    if (success) {
-                        val ret = r.reconstruct (newchildren)
-                        Some (ret)
-                    } else {
+                    if (success)
+                        if (changed) {
+                            val ret = r.reconstruct (newchildren)
+                            Some (ret)
+                        } else {
+                            Some (r)
+                        }
+                    else
                         None
-                    }
                 }
             }
 
@@ -693,20 +757,25 @@ object Rewriter {
                 else {
                     val b = cbf (t.repr)
                     var success = false
+                    var changed = false
                     b.sizeHint (t)
                     for (ct <- t)
                         s (ct) match {
                             case Some (ti) =>
                                 b += ti
+                                if (!same (ct, ti))
+                                    changed = true
                                 success = true
                             case None =>
                                 b += ct
                         }
-                    if (success) {
-                        Some (b.result)
-                    } else {
+                    if (success)
+                        if (changed)
+                            Some (b.result)
+                        else
+                            Some (t)
+                    else
                         None
-                    }
                 }
 
             private def some[CC[V,W] <: Map[V,W] with MapLike[V,W,CC[V,W]]] (t : CC[Term,Term])
@@ -716,20 +785,25 @@ object Rewriter {
                 else {
                     val b = cbf (t.repr)
                     var success = false
+                    var changed = false
                     b.sizeHint (t)
                     for (ct <- t)
                         s (ct) match {
-                            case Some ((tix, tiy)) =>
-                                b += ((tix, tiy))
+                            case Some (ti @ (tix, tiy)) =>
+                                b += ti
+                                if (!same (ct, ti))
+                                    changed = true
                                 success = true
                             case None =>
                                 b += ct
                         }
-                    if (success) {
-                        Some (b.result)
-                    } else {
+                    if (success)
+                        if (changed)
+                            Some (b.result)
+                        else
+                            Some (t)
+                    else
                         None
-                    }
                 }
         }
 
@@ -740,6 +814,9 @@ object Rewriter {
      * term is the same as that of the original term and the children
      * are the results of the strategies.  If the length of ss is not
      * the same as the number of children, then congruence (ss) fails.
+     * If the argument strategies succeed on children producing the same
+     * terms (by eq for references and by == for other values), then the
+     * overall strategy returns the subject term.
      * This operation works on instances of Product values.
      */
     def congruence (ss : Strategy*) : Strategy =
@@ -754,20 +831,25 @@ object Rewriter {
                val numchildren = p.productArity
                if (numchildren == ss.length) {
                    val newchildren = new Array[AnyRef](numchildren)
+                   var changed = false
                    for (i <- 0 until numchildren) {
                        val ct = p.productElement (i)
                        (ss (i)) (ct) match {
                            case Some (ti) =>
                                newchildren (i) = makechild (ti)
-                           case None      =>
+                               if (!same (ct, ti))
+                                   changed = true
+                           case None =>
                                return None
                        }
                    }
-                   val ret = dup (p, newchildren)
-                   Some (ret)
-               } else {
+                   if (changed) {
+                       val ret = dup (p, newchildren)
+                       Some (ret)
+                   } else
+                       Some (p)
+               } else
                    None
-               }
             }
         }
 
