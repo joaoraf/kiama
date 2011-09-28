@@ -414,8 +414,11 @@ object Rewriter {
                             Some (p)
                         case Some (ti) =>
                             val newchildren = new Array[AnyRef](numchildren)
-                            for (j <- 0 until numchildren)
+                            var j = 0
+                            while (j < numchildren) {
                                 newchildren (j) = makechild (p.productElement (j))
+                                j = j + 1
+                            }
                             newchildren (i-1) = makechild (ti)
                             val ret = dup (p, newchildren)
                             Some (ret)
@@ -439,11 +442,17 @@ object Rewriter {
                         case Some (ti) =>
                             val b = cbf (t)
                             b.sizeHint (t.size)
-                            for (j <- 0 until i - 1)
+                            var j = 0
+                            while (j < i - 1) {
                                 b += t (j)
+                                j = j + 1
+                            }
                             b += ti
-                            for (j <- i until numchildren)
+                            j = j + 1
+                            while (j < numchildren) {
                                 b += t (j)
+                                j = j + 1
+                            }
                             Some (b.result)
                         case None =>
                             None
@@ -496,7 +505,8 @@ object Rewriter {
                 } else {
                     val newchildren = new Array[AnyRef](numchildren)
                     var changed = false
-                    for (i <- 0 until numchildren) {
+                    var i = 0
+                    while (i < numchildren) {
                         val ct = p.productElement (i)
                         s (ct) match {
                             case Some (ti) =>
@@ -506,6 +516,7 @@ object Rewriter {
                             case None =>
                                 return None
                         }
+                        i = i + 1
                     }
                     if (changed) {
                         val ret = dup (p, newchildren)
@@ -523,7 +534,8 @@ object Rewriter {
                     val children = r.deconstruct
                     val newchildren = new Array[Any](numchildren)
                     var changed = false
-                    for (i <- 0 until numchildren) {
+                    var i = 0
+                    while (i < numchildren) {
                         val ct = children (i)
                         s (ct) match {
                             case Some (ti) =>
@@ -533,6 +545,7 @@ object Rewriter {
                             case None =>
                                 return None
                         }
+                        i = i + 1
                     }
                     if (changed) {
                         val ret = r.reconstruct (newchildren)
@@ -620,23 +633,31 @@ object Rewriter {
 
             private def oneProduct (p : Product) : Option[Term] = {
                 val numchildren = p.productArity
-                for (i <- 0 until numchildren) {
+                var i = 0
+                while (i < numchildren) {
                     val ct = p.productElement (i)
                     s (ct) match {
                         case Some (ti) if (same (ct, ti)) =>
                             return Some (p)
                         case Some (ti) =>
                             val newchildren = new Array[AnyRef] (numchildren)
-                            for (j <- 0 until i)
+                            var j = 0
+                            while (j < i) {
                                 newchildren (j) = makechild (p.productElement (j))
+                                j = j + 1
+                            }
                             newchildren (i) = makechild (ti)
-                            for (j <- i + 1 until numchildren)
+                            j = j + 1
+                            while (j < numchildren) {
                                 newchildren (j) = makechild (p.productElement (j))
+                                j = j + 1
+                            }
                             val ret = dup (p, newchildren)
                             return Some (ret)
                         case None =>
                             // Do nothing
                     }
+                    i = i + 1
                 }
                 None
             }
@@ -644,23 +665,31 @@ object Rewriter {
             private def oneRewritable (r : Rewritable) : Option[Term] = {
                 val numchildren = r.arity
                 val children = r.deconstruct
-                for (i <- 0 until numchildren) {
+                var i = 0
+                while (i < numchildren) {
                     val ct = children (i)
                     s (ct) match {
                         case Some (ti) if (same (ct, ti)) =>
                             return Some (r)
                         case Some (ti) =>
                             val newchildren = new Array[Any] (numchildren)
-                            for (j <- 0 until i)
+                            var j = 0
+                            while (j < i) {
                                 newchildren (j) = makechild (children (j))
+                                j = j + 1
+                            }
                             newchildren (i) = makechild (ti)
-                            for (j <- i + 1 until numchildren)
+                            j = j + 1
+                            while (j < numchildren) {
                                 newchildren (j) = makechild (children (j))
+                                j = j + 1
+                            }
                             val ret = r.reconstruct (newchildren)
                             return Some (ret)
                         case None =>
                             // Do nothing
                     }
+                    i = i + 1
                 }
                 None
             }
@@ -752,7 +781,8 @@ object Rewriter {
                     val newchildren = new Array[AnyRef](numchildren)
                     var success = false
                     var changed = false
-                    for (i <- 0 until numchildren) {
+                    var i = 0
+                    while (i < numchildren) {
                         val ct = p.productElement (i)
                         s (ct) match {
                             case Some (ti) =>
@@ -763,6 +793,7 @@ object Rewriter {
                             case None =>
                                 newchildren (i) = makechild (ct)
                         }
+                        i = i + 1
                     }
                     if (success)
                         if (changed) {
@@ -785,7 +816,8 @@ object Rewriter {
                     val newchildren = new Array[Any](numchildren)
                     var success = false
                     var changed = false
-                    for (i <- 0 until numchildren) {
+                    var i = 0
+                    while (i < numchildren) {
                         val ct = children (i)
                         s (ct) match {
                             case Some (ti) =>
@@ -796,6 +828,7 @@ object Rewriter {
                             case None =>
                                 newchildren (i) = makechild (ct)
                         }
+                        i = i + 1
                     }
                     if (success)
                         if (changed) {
@@ -893,7 +926,8 @@ object Rewriter {
                if (numchildren == ss.length) {
                    val newchildren = new Array[AnyRef](numchildren)
                    var changed = false
-                   for (i <- 0 until numchildren) {
+                   var i = 0
+                   while (i < numchildren) {
                        val ct = p.productElement (i)
                        (ss (i)) (ct) match {
                            case Some (ti) =>
@@ -903,6 +937,7 @@ object Rewriter {
                            case None =>
                                return None
                        }
+                       i = i + 1
                    }
                    if (changed) {
                        val ret = dup (p, newchildren)
