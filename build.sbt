@@ -8,7 +8,7 @@
 
 name := "kiama"
 
-version := "1.4.0-B4"
+version := "1.4.0-B5-SNAPSHOT"
 
 organization := "com.googlecode.kiama"
 
@@ -22,7 +22,7 @@ crossScalaVersions := Seq ("2.9.2", "2.10.0-RC3")
 
 scalacOptions := Seq ("-deprecation", "-unchecked")
 
-scalacOptions in Compile <<= (scalaVersion, scalacOptions) map { 
+scalacOptions in Compile <<= (scalaVersion, scalacOptions) map {
     (version, options) =>
         val versionOptions =
             version match {
@@ -35,7 +35,7 @@ scalacOptions in Compile <<= (scalaVersion, scalacOptions) map {
         options ++ versionOptions
 }
 
-scalacOptions in Test <<= (scalaVersion, scalacOptions) map { 
+scalacOptions in Test <<= (scalaVersion, scalacOptions) map {
     (version, options) =>
         val versionOptions =
             version match {
@@ -60,7 +60,7 @@ scalacOptions in Test <<= (scalaVersion, scalacOptions) map {
 
 logLevel := Level.Info
 
-shellPrompt <<= (name, version) { (n, v) => 
+shellPrompt <<= (name, version) { (n, v) =>
      _ => n + " " + v + "> "
 }
 
@@ -158,9 +158,9 @@ unmanagedResources in Test <<= (scalaSource in Test) map { s => {
 
 scalacOptions in (Compile, doc) <++= baseDirectory map {
     bd => Seq (
-        "-sourcepath", 
-            bd.getAbsolutePath, 
-        "-doc-source-url", 
+        "-sourcepath",
+            bd.getAbsolutePath,
+        "-doc-source-url",
             "https://code.google.com/p/kiama/source/browse€{FILE_PATH}.scala"
     )
 }
@@ -170,7 +170,7 @@ scalacOptions in (Compile, doc) <++= baseDirectory map {
 publishTo <<= version { v =>
     val nexus = "https://oss.sonatype.org/"
     if (v.trim.endsWith ("SNAPSHOT"))
-        Some ("snapshots" at nexus + "content/repositories/snapshots") 
+        Some ("snapshots" at nexus + "content/repositories/snapshots")
     else
         Some ("releases" at nexus + "service/local/staging/deploy/maven2")
 }
@@ -186,7 +186,7 @@ pomExtra := (
     <licenses>
         <license>
             <name>LGPL 3.0 license</name>
-            <url>http://www.opensource.org/licenses/lgpl-3.0.html</url>        
+            <url>http://www.opensource.org/licenses/lgpl-3.0.html</url>
             <distribution>repo</distribution>
         </license>
     </licenses>
@@ -207,20 +207,20 @@ pomExtra := (
 // and is used rarely. See also imports at top of file.
 
 // seq (findbugsSettings : _*)
-// 
+//
 // // The next two settings ensure that the test classes are included,
 // // otherwise it just check the main library files.  There appears to
 // // be no way to add more than one path to be analyzed.
 // findbugsAnalyzedPath <<= target { identity[File] }
-// 
+//
 // // Normally it just depends on compile in Compile so changes in the
 // // test files do not trigger a rebuild before the findbugs task runs
 // findbugsPathSettings <<= findbugsPathSettings.dependsOn (compile in Test)
-// 
+//
 // findbugsReportType := FancyHtml
-// 
+//
 // findbugsReportName := "findbugsReport.html"
-// 
+//
 // findbugsExcludeFilters := Some (
 //     <FindBugsFilter>
 //         <!-- For a private final foo = exp construct where exp is constant, scalac
