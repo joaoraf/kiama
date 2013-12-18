@@ -22,12 +22,11 @@ package org.kiama
 package output
 
 import org.kiama.util.Tests
-import org.scalatest.prop.Checkers
 
 /**
  * Basic tests of filters.
  */
-class FiltersTests extends Tests with Checkers with PrettyPrinter {
+class FiltersTests extends Tests with PrettyPrinter {
 
     import Filters.{keepMaxChars, keepMaxIndent, keepMaxLines,
         keepMaxWords}

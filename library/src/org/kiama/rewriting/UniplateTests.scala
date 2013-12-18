@@ -22,14 +22,13 @@ package org.kiama
 package rewriting
 
 import org.kiama.util.Tests
-import org.scalatest.prop.Checkers
 import org.kiama.example.imperative.Generator
 
 /**
  * Tests based on examples from the paper "Uniform boilerplate and list
  * processing" by Mitchell and Runciman, from Haskell Workshop 2007.
  */
-class UniplateTests extends Tests with Checkers with Generator {
+class UniplateTests extends Tests with Generator {
 
     import org.kiama.example.imperative.AST._
     import org.kiama.rewriting.Rewriter._

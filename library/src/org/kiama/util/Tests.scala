@@ -21,13 +21,14 @@
 package org.kiama
 package util
 
+import org.scalatest.prop.Checkers
 import org.scalatest.{BeforeAndAfter, FunSuiteLike}
 import scala.util.parsing.combinator.RegexParsers
 
 /**
  * General test support.
  */
-trait Tests extends FunSuiteLike with BeforeAndAfter {
+trait Tests extends FunSuiteLike with BeforeAndAfter with Checkers {
 
     import org.scalatest.Tag
 

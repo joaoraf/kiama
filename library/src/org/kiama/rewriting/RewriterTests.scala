@@ -23,12 +23,11 @@ package rewriting
 
 import org.kiama.example.imperative.Generator
 import org.kiama.util.Tests
-import org.scalatest.prop.Checkers
 
 /**
  * Rewriting tests.
  */
-class RewriterTests extends Tests with Checkers with Generator {
+class RewriterTests extends Tests with Generator {
 
     import org.kiama.example.imperative.AST._
     import scala.collection.immutable.Seq

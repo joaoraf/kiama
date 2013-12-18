@@ -22,12 +22,11 @@ package org.kiama
 package example.lambda2
 
 import org.kiama.util.RegexParserTests
-import org.scalatest.prop.Checkers
 
 /**
  * Lambda calculus tests.
  */
-class LambdaTests extends RegexParserTests with Checkers with Parser {
+class LambdaTests extends RegexParserTests with Parser {
 
     import AST._
     import Evaluators.{evaluatorFor, mechanisms}
