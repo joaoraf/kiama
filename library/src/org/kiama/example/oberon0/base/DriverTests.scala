@@ -32,7 +32,7 @@ import source.ModuleDecl
  */
 trait TestDriver extends Driver with TestCompilerWithConfig[ModuleDecl,Oberon0Config] {
 
-    this : SymbolTable with CompilerBase[ModuleDecl,Oberon0Config] =>
+    this : CompilerBase[ModuleDecl,Oberon0Config] =>
 
     import scala.collection.immutable.Seq
 

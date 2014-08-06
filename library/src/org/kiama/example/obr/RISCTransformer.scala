@@ -33,17 +33,13 @@ class RISCTransformer (analyser : SemanticAnalyser) {
     import RISCTree._
     import SymbolTable._
     import org.kiama.attribution.Attribution.attr
-    import org.kiama.attribution.Decorators.down
+    import org.kiama.attribution.Decorators
     import org.kiama.util.Entity
     import scala.collection.immutable.Seq
 
-    /**
-     * Generate a brand new target label. Shares counter with the encoding
-     * phase so that labels are unique.
-     */
-    def genlabel () : Label = {
-        Label (genlabelnum ())
-    }
+    val tree = analyser.tree
+    val decorators = new Decorators (tree)
+    import decorators.down
 
     /**
      * The RISC machine program that is the translation of the given
@@ -60,7 +56,7 @@ class RISCTransformer (analyser : SemanticAnalyser) {
                 val sepilogue = Seq (
                         Write (IntDatum (0))
                     ,   Ret ()
-                    ,   LabelDef (p->exnlab)
+                    ,   LabelDef (Label (exnlab (p)))
                     ,   Write (IntDatum (-1))
                     )
                 RISCProg (dbody ++ sbody ++ sepilogue)
@@ -83,30 +79,30 @@ class RISCTransformer (analyser : SemanticAnalyser) {
     def location (n : EntityTree) : Address =
         n match {
             case e @ IndexExp (v, i) =>
-                val lab1 = genlabel ()
-                val lab2 = genlabel ()
+                val lab1 = genlabelnum ()
+                val lab2 = genlabelnum ()
                 Indexed (
-                    Local (locn (v->entity)),
+                    Local (locn (entity (v))),
                     MulW (
                         SequenceDatum(
                             Seq(
-                                StW (tempintloc, SubW (i->datum, IntDatum(1))),
-                                Bne (CmpltW (LdW (tempintloc), IntDatum (0)), lab1),
+                                StW (Local (tempintloc), SubW (datum (i), IntDatum(1))),
+                                Bne (CmpltW (LdW (Local (tempintloc)), IntDatum (0)), Label (lab1)),
                                 Beq (CmpltW (
-                                    (v->entity) match {
+                                    entity (v) match {
                                         case Variable (ArrayType (size)) => IntDatum (size-1)
-                                    }, LdW (tempintloc)), lab2),
-                                LabelDef (lab1),
-                                StW (exnloc, IntDatum (indexOutOfBoundsExn)),
-                                Jmp (e->exnlab),
-                                LabelDef (lab2)),
-                            LdW (tempintloc)),
+                                    }, LdW (Local (tempintloc))), Label (lab2)),
+                                LabelDef (Label (lab1)),
+                                StW (Local (exnloc), IntDatum (indexOutOfBoundsExn)),
+                                Jmp (Label (exnlab (e))),
+                                LabelDef (Label (lab2))),
+                            LdW (Local (tempintloc))),
                         IntDatum (WORDSIZE)))
             case FieldExp (v, f) =>
-                val e @ Variable (RecordType (fs)) = v->entity
+                val e @ Variable (RecordType (fs)) = entity (v)
                 Local (locn (e) + fs.indexOf (f) * WORDSIZE)
             case _ =>
-                Local (locn ((n.idn)->entity))
+                Local (locn (entity (n.idn)))
         }
 
     /**
@@ -114,9 +110,9 @@ class RISCTransformer (analyser : SemanticAnalyser) {
      * at the given context.
      */
     val exitlab =
-        down[ObrTree,Label] (Label (0)) {
+        down[Int] (0) {
             case _ : LoopStmt =>
-                genlabel ()
+                genlabelnum ()
         }
 
     /**
@@ -127,17 +123,17 @@ class RISCTransformer (analyser : SemanticAnalyser) {
      * active exception handler can be determined completely statically.
      */
     val exnlab =
-        down[ObrTree,Label] (Label (0)) {
+        down[Int] (0) {
 
             // Programs and Try statements can catch exceptions.
             case _ : ObrInt | _ : TryStmt =>
-                genlabel ()
+                genlabelnum ()
 
             // Catch blocks don't use the exnlab of their context, but the
             // one from the context of the Try in which they occur, since
             // re-raising an exception has to go out one level.
             case s : Catch =>
-                s->exnlabOuter
+                exnlabOuter (s)
 
         }
 
@@ -145,10 +141,10 @@ class RISCTransformer (analyser : SemanticAnalyser) {
      * The exception label for the context outside the current Try statement.
      * Only valid when used inside a Try statement.
      */
-    val exnlabOuter : ObrTree => Label =
-        down[ObrTree,Label] (Label (0)) {
-            case s : TryStmt =>
-                (s.parent[ObrTree])->exnlab
+    val exnlabOuter : ObrNode => Int =
+        down[Int] (0) {
+            case tree.parent.pair (s : TryStmt, p) =>
+                exnlab (p)
         }
 
     /**
@@ -156,15 +152,15 @@ class RISCTransformer (analyser : SemanticAnalyser) {
      * they are checked for possible division by zero or index out of
      * bounds errors.
      */
-    val tempintloc : Address =
-        Local (locn (Variable (IntType ())))
+    val tempintloc : Int =
+        locn (Variable (IntType ()))
 
     /**
      * A location reserved for storing the exception value associated with
      * a raised exception.
      */
-    val exnloc : Address =
-        Local (locn (Variable (ExnType ())))
+    val exnloc : Int =
+        locn (Variable (ExnType ()))
 
     /**
      * The RISC tree items that are the translation of the given
@@ -200,14 +196,14 @@ class RISCTransformer (analyser : SemanticAnalyser) {
              * into the lvalue location.
              */
             case AssignStmt (e, exp) =>
-                Seq (StW (location (e), exp->datum))
+                Seq (StW (location (e), datum (exp)))
 
             /**
              * An EXIT statement translates into a jump to the exit label
              * of the current LOOP statement.
              */
             case s @ ExitStmt () =>
-                Seq (Jmp (s->exitlab))
+                Seq (Jmp (Label (exitlab (s))))
 
             /**
              * A for statement first evaluates the minimum and maximum bounds,
@@ -221,27 +217,27 @@ class RISCTransformer (analyser : SemanticAnalyser) {
              * is the biggest integer that can be stored.
              */
             case e @ ForStmt (idn, min, max, body) =>
-                val lab1 = genlabel ()
-                val lab2 = genlabel ()
-                val lab3 = genlabel ()
-                val eloc = location (e)
+                val lab1 = genlabelnum ()
+                val lab2 = genlabelnum ()
+                val lab3 = genlabelnum ()
+                def eloc = location (e)
                 // store current value of first unallocated location
                 val origprevloc = prevLocCounter.value
                 // allocate a temporary location to store the calculated
                 // maximum index value for this for loop.
-                val maxloc = Local (locn (Variable (IntType ())))
+                val maxloc = locn (Variable (IntType ()))
                 // generate RISCTree code
                 val result =
-                    Seq (StW (eloc, min->datum),
-                          StW (maxloc, max->datum),
-                          Bne (CmpgtW (LdW (eloc), LdW (maxloc)), lab2),
-                          Jmp (lab1),
-                          LabelDef (lab3),
-                          StW (eloc, AddW (LdW (eloc), IntDatum (1))),
-                          LabelDef (lab1)) ++
+                    Seq (StW (eloc, datum (min)),
+                         StW (Local (maxloc), datum (max)),
+                         Bne (CmpgtW (LdW (eloc), LdW (Local (maxloc))), Label (lab2)),
+                         Jmp (Label (lab1)),
+                         LabelDef (Label (lab3)),
+                         StW (eloc, AddW (LdW (eloc), IntDatum (1))),
+                         LabelDef (Label (lab1))) ++
                     body.flatMap (sitems) ++
-                    Seq (Bne (CmpltW (LdW (eloc), LdW (maxloc)), lab3),
-                          LabelDef (lab2))
+                    Seq (Bne (CmpltW (LdW (eloc), LdW (Local (maxloc))), Label (lab3)),
+                          LabelDef (Label (lab2)))
                 // restore value of first unallocated location
                 // thereby deallocating our temporary.
                 prevLocCounter.reset (origprevloc)
@@ -254,13 +250,13 @@ class RISCTransformer (analyser : SemanticAnalyser) {
              * then and else parts.
              */
             case IfStmt (cond, thens, elses) =>
-                val lab1 = genlabel ()
-                val lab2 = genlabel ()
-                Seq (Beq (cond->datum, lab1)) ++
+                val lab1 = genlabelnum ()
+                val lab2 = genlabelnum ()
+                Seq (Beq (datum (cond), Label (lab1))) ++
                     thens.flatMap (sitems) ++
-                    Seq (Jmp (lab2), LabelDef (lab1)) ++
+                    Seq (Jmp (Label (lab2)), LabelDef (Label (lab1))) ++
                     elses.flatMap (sitems) ++
-                    Seq (LabelDef (lab2))
+                    Seq (LabelDef (Label (lab2)))
 
             /**
              * A LOOP statement translates into a simple infinite loop
@@ -271,13 +267,12 @@ class RISCTransformer (analyser : SemanticAnalyser) {
              */
             case s @ LoopStmt (body) =>
                 // Generate label for top of loop body
-                val lab1 = genlabel ()
+                val lab1 = genlabelnum ()
                 // Construct loop code
-                val result = Seq (LabelDef (lab1)) ++
-                                body.flatMap (sitems) ++
-                                Seq (Jmp (lab1), LabelDef (s->exitlab))
-                // Return loop code
-                result
+                Seq (LabelDef (Label (lab1))) ++
+                    body.flatMap (sitems) ++
+                    Seq (Jmp (Label (lab1)),
+                    LabelDef (Label (exitlab (s))))
 
             /**
              * A return statement translates into a Write instruction to
@@ -285,18 +280,18 @@ class RISCTransformer (analyser : SemanticAnalyser) {
              * terminate the program.
              */
             case ReturnStmt (exp) =>
-                Seq (Write (exp->datum), Ret ())
+                Seq (Write (datum (exp)), Ret ())
 
             /**
              * A while statement translates into the standard evaluation
              * of the condition and branching to the body.
              */
             case WhileStmt (cond, body) =>
-                val lab1 = genlabel ()
-                val lab2 = genlabel ()
-                Seq (Jmp (lab1), LabelDef (lab2)) ++
+                val lab1 = genlabelnum ()
+                val lab2 = genlabelnum ()
+                Seq (Jmp (Label (lab1)), LabelDef (Label (lab2))) ++
                     body.flatMap (sitems) ++
-                    Seq (LabelDef (lab1), Bne (cond->datum, lab2))
+                    Seq (LabelDef (Label (lab1)), Bne (datum (cond), Label (lab2)))
 
             /**
              * A TRY statement translates to the code generated from its body followed by
@@ -312,14 +307,14 @@ class RISCTransformer (analyser : SemanticAnalyser) {
              */
             case s @ TryStmt (TryBody (body), cblocks) =>
                 // A label for the exit point of the exception handler code
-                val tryexitlab = genlabel ()
+                val tryexitlab = genlabelnum ()
                 // Construct the translated RISC code for the body of this try statement
                 val tbody = body.flatMap (sitems)
                 // Translate the catch clauses, append the resulting RISC code to that for
                 // the body and return
-                tbody ++ Seq (Jmp (tryexitlab), LabelDef (s->exnlab)) ++
+                tbody ++ Seq (Jmp (Label (tryexitlab)), LabelDef (Label (exnlab (s)))) ++
                     cblocks.flatMap (cblock (_, tryexitlab)) ++
-                    Seq (Jmp (s->exnlabOuter), LabelDef (tryexitlab))
+                    Seq (Jmp (Label (exnlabOuter (s))), LabelDef (Label (tryexitlab)))
 
             /**
              * A RAISE statement stores the integer associated with the specified
@@ -330,13 +325,13 @@ class RISCTransformer (analyser : SemanticAnalyser) {
             case RaiseStmt (s) =>
                 // Get hold of the integer constant associated with the exception
                 // kind specified in this RAISE statement
-                val exnconst = (s->entity) match {
+                val exnconst = entity (s) match {
                     case Constant (_, v) => IntDatum (v)
                 }
                 // Generate code to store that vale as the current exception number
                 // and then to jump to the entry point of the exception handler currently
                 // in scope.
-                Seq (StW (exnloc, exnconst), Jmp (s->exnlab))
+                Seq (StW (Local (exnloc), exnconst), Jmp (Label (exnlab (s))))
 
         }
 
@@ -345,22 +340,22 @@ class RISCTransformer (analyser : SemanticAnalyser) {
      * to a test of the value of the current exception followed by code which
      * executed if that test succeeds.
      */
-    def cblock (clause : Catch, exitlab : Label) : Seq[Item] =
+    def cblock (clause : Catch, exitlab : Int) : Seq[Item] =
         clause match {
 
             case Catch (n, stmts) =>
                 // Generate a label for the exit point of this catch block.
-                val lab1 = genlabel ()
+                val lab1 = genlabelnum ()
                 // Get hold of the integer constant associated with the exception
                 // identifier of this catch block from the entity of this node.
-                val exnconst = (n->entity) match {
+                val exnconst = entity (n) match {
                     case Constant (_, v) => IntDatum (v)
                 }
                 // Generate code for statements in the catch body, guarded by a
                 // conditional branch to test the exception value thrown.
-                Seq (Beq (CmpeqW (LdW (exnloc), exnconst), lab1)) ++
+                Seq (Beq (CmpeqW (LdW (Local (exnloc)), exnconst), Label (lab1))) ++
                     stmts.flatMap (sitems) ++
-                    Seq(Jmp (exitlab), LabelDef (lab1))
+                    Seq (Jmp (Label (exitlab)), LabelDef (Label (lab1)))
 
         }
 
@@ -376,7 +371,7 @@ class RISCTransformer (analyser : SemanticAnalyser) {
              * operation of the form if (l) r else 0.
              */
             case AndExp (l, r) =>
-                Cond (l->datum, r->datum, IntDatum (0))
+                Cond (datum (l), datum (r), IntDatum (0))
 
             /**
              * A true value translates into a one.
@@ -394,7 +389,7 @@ class RISCTransformer (analyser : SemanticAnalyser) {
              * An equality test turns into an equality operation.
              */
             case EqualExp (l, r) =>
-                CmpeqW (l->datum, r->datum)
+                CmpeqW (datum (l), datum (r))
 
             /**
              * A field expression is a load from the location of the field.
@@ -406,7 +401,7 @@ class RISCTransformer (analyser : SemanticAnalyser) {
              * A greater than comparison turns into a greater than operation.
              */
             case GreaterExp (l, r) =>
-                CmpgtW (l->datum, r->datum)
+                CmpgtW (datum (l), datum (r))
 
             /**
              * An identifier use translates to either a) an integer datum if
@@ -414,7 +409,7 @@ class RISCTransformer (analyser : SemanticAnalyser) {
              * from the location at which the variable is stored.
              */
             case e @ IdnExp (n) =>
-                (n->entity) match {
+                entity (n) match {
                     case Constant (_, v) => IntDatum (v)
                     case _               => LdW (location (e))
                 }
@@ -437,62 +432,62 @@ class RISCTransformer (analyser : SemanticAnalyser) {
              * A less than comparison turns into an less than operation.
              */
             case LessExp (l, r) =>
-                CmpltW (l->datum, r->datum)
+                CmpltW (datum (l), datum (r))
 
             /**
              * A minus expression turns into a subtraction operation.
              */
             case MinusExp (l, r) =>
-                SubW (l->datum, r->datum)
+                SubW (datum (l), datum (r))
 
             /**
              * A modulus expression turns into a remainder operation.
              * See the translation of SlashExps for more information.
              */
             case e @ ModExp (l, r) =>
-                val lab1 = genlabel ()
+                val lab1 = genlabelnum ()
                 SequenceDatum (
                     Seq (
-                            StW (tempintloc, r->datum)
-                        ,   Bne (LdW (tempintloc), lab1)
-                        ,   StW (exnloc, IntDatum (divideByZeroExn))
-                        ,   Jmp (e->exnlab)
-                        ,   LabelDef (lab1)
+                            StW (Local (tempintloc), datum (r))
+                        ,   Bne (LdW (Local (tempintloc)), Label (lab1))
+                        ,   StW (Local (exnloc), IntDatum (divideByZeroExn))
+                        ,   Jmp (Label (exnlab (e)))
+                        ,   LabelDef (Label (lab1))
                         )
-                ,   RemW (l->datum, LdW (tempintloc))
+                ,   RemW (datum (l), LdW (Local (tempintloc)))
                 )
 
             /**
              * A negation expression turns into a negation operation.
              */
             case NegExp (e) =>
-                NegW (e->datum)
+                NegW (datum (e))
 
             /**
              * A Boolean complement expressions turns into a complement
              * operation.
              */
             case NotExp (e) =>
-                Not (e->datum)
+                Not (datum (e))
 
             /**
              * An inequality test turns into an inequality operation..
              */
             case NotEqualExp (l, r) =>
-                CmpneW (l->datum, r->datum)
+                CmpneW (datum (l), datum (r))
 
             /**
              * A short-circuited OR expression turns into a conditional
              * operation of the form if (l) 1 else r.
              */
             case OrExp (l, r) =>
-                Cond (l->datum, IntDatum (1), r->datum)
+                Cond (datum (l), IntDatum (1), datum (r))
 
             /**
              * A plus expression turns into an addition operation.
              */
             case PlusExp (l, r) =>
-                AddW (l->datum, r->datum)
+                AddW (datum (l), datum (r))
 
             /**
              * A slash expression turns into a division operation.
@@ -501,32 +496,32 @@ class RISCTransformer (analyser : SemanticAnalyser) {
              * exception.
              */
             case e @ SlashExp (l, r) =>
-                val lab1 = genlabel ()
+                val lab1 = genlabelnum ()
                 SequenceDatum (
                         Seq (
                                 // Calculate value of right operand and store result
                                 // in the memory location reserved for temporaries.
-                                StW (tempintloc, r->datum)
+                                StW (Local (tempintloc), datum (r))
                                 // If this value is non-zero then branch to the code
                                 // which actually calculates this division operation.
-                            ,   Bne (LdW (tempintloc), lab1)
+                            ,   Bne (LdW (Local (tempintloc)), Label (lab1))
                                 // Store the integer associated with DivideByZero exceptions
                                 // into the location reserved for the current exn number.
-                            ,   StW (exnloc, IntDatum (divideByZeroExn))
+                            ,   StW (Local (exnloc), IntDatum (divideByZeroExn))
                                 // Raise this exception by jumping to the current
                                 // (nearest enclosing) exception handler.
-                            ,   Jmp (e->exnlab)
-                            ,   LabelDef (lab1)
+                            ,   Jmp (Label (exnlab (e)))
+                            ,   LabelDef (Label (lab1))
                             )
                         // Finally execute the division operation.
-                    ,   DivW (l->datum, LdW (tempintloc))
+                    ,   DivW (datum (l), LdW (Local (tempintloc)))
                     )
 
             /**
              * A star expression turns into a multiplication operation.
              */
             case StarExp (l, r) =>
-                MulW (l->datum, r->datum)
+                MulW (datum (l), datum (r))
 
         }
 

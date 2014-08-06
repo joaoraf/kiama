@@ -31,6 +31,7 @@ import org.kiama.util.{Compiler, TestCompiler}
 class SemanticAnalyserTests extends SyntaxAnalyser with Compiler[Program]
         with TestCompiler[Program] {
 
+    import PrologTree.PrologTree
     import org.kiama.util.Config
     import org.kiama.util.Messaging.report
 
@@ -46,7 +47,8 @@ class SemanticAnalyserTests extends SyntaxAnalyser with Compiler[Program]
      */
     override def process (filename : String, ast : Program, config : Config) {
         super.process (filename, ast, config)
-        val analyser = new SemanticAnalyser
+        val tree = new PrologTree (ast)
+        val analyser = new SemanticAnalyser (tree)
         val messages = analyser.errors (ast)
         if (messages.length > 0)
             report (messages, config.error)

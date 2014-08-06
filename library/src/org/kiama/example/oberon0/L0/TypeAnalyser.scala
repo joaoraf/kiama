@@ -24,7 +24,7 @@ package L0
 
 trait TypeAnalyser extends NameAnalyser {
 
-    import base.source.{Expression, IdnUse, SourceTree}
+    import base.source.{Expression, IdnUse, SourceNode}
     import org.kiama.attribution.Attribution.attr
     import org.kiama.util.Messaging.{check, message, Messages}
     import source.{AndExp, Assignment, ConstDecl, IdnExp, IntExp, NamedType,
@@ -34,11 +34,11 @@ trait TypeAnalyser extends NameAnalyser {
     /**
      * The error checking for this level.
      */
-    override def errorsDef (n : SourceTree) : Messages =
+    override def errorsDef (n : SourceNode) : Messages =
         super.errorsDef (n) ++
         check (n) {
-            case e : Expression if !isCompatible (e->tipe, e->exptype) =>
-                message (e, s"type error: got ${e->tipe}, but expected ${e->exptype}")
+            case e : Expression if !isCompatible (tipe (e), exptype (e)) =>
+                message (e, s"type error: got ${tipe (e)}, but expected ${exptype (e)}")
         }
 
     /**
@@ -55,7 +55,7 @@ trait TypeAnalyser extends NameAnalyser {
      */
     lazy val basetype : Expression => Type =
         attr (
-            e => typebasetype (e->tipe)
+            e => typebasetype (tipe (e))
         )
 
     /**
@@ -63,7 +63,7 @@ trait TypeAnalyser extends NameAnalyser {
      */
     lazy val typebasetype : Type => Type =
         attr {
-            case UserType (_, t2) => typebasetype ((t2.tipe)->deftype)
+            case UserType (_, t2) => typebasetype (deftype (t2.tipe))
             case t                => t
         }
 
@@ -82,7 +82,7 @@ trait TypeAnalyser extends NameAnalyser {
                 integerType
 
             case IdnExp (u : IdnUse) =>
-                u->idntype
+                idntype (u)
 
             case _ =>
                 unknownType
@@ -96,10 +96,10 @@ trait TypeAnalyser extends NameAnalyser {
 
     def idntypeDef : IdnUse => Type =
         (u =>
-            u->entity match {
-                case Constant (_, ConstDecl (_, e)) => e->tipe
+            entity (u) match {
+                case Constant (_, ConstDecl (_, e)) => tipe (e)
                 case IntegerValue (_, t, _)         => t
-                case Variable (_, t)                => t->deftype
+                case Variable (_, t)                => deftype (t)
                 case _                              => unknownType
             })
 
@@ -112,7 +112,7 @@ trait TypeAnalyser extends NameAnalyser {
     def deftypeDef : TypeDef => Type =
         {
             case NamedType (u : IdnUse) =>
-                u->entity match {
+                entity (u) match {
                     case t : Type  => t
                     case _         => unknownType
                 }
@@ -123,7 +123,7 @@ trait TypeAnalyser extends NameAnalyser {
      */
     lazy val decltype : TypeDecl => Type =
         attr {
-            case TypeDecl (_, t) => t->deftype
+            case TypeDecl (_, t) => deftype (t)
         }
 
     /**
@@ -133,16 +133,15 @@ trait TypeAnalyser extends NameAnalyser {
         attr (exptypeDef)
 
     def exptypeDef : Expression => Type =
-        (n =>
-            n.parent match {
-                case _ : OrExp | _ : AndExp | _ : NotExp =>
-                    booleanType
+        {
+            case tree.parent (_ : OrExp | _ : AndExp | _ : NotExp) =>
+                booleanType
 
-                case Assignment (d, _) =>
-                    d->tipe
+            case tree.parent (Assignment (d, _)) =>
+                tipe (d)
 
-                case _ =>
-                    integerType
-            })
+            case _ =>
+                integerType
+        }
 
 }

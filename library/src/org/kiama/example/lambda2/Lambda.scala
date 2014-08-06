@@ -45,6 +45,7 @@ class LambdaConfig (args : Seq[String], output : Emitter, error : Emitter) exten
 object Lambda extends ParsingREPLWithConfig[Exp,LambdaConfig] with SyntaxAnalyser {
 
     import Evaluators.{evaluatorFor, mechanisms}
+    import LambdaTree.LambdaTree
     import PrettyPrinter._
     import org.kiama.util.Emitter
     import org.kiama.util.Messaging.report
@@ -113,15 +114,15 @@ object Lambda extends ParsingREPLWithConfig[Exp,LambdaConfig] with SyntaxAnalyse
     }
 
     /**
-     * The analysis object to use for processing.
-     */
-    val analyser = new Analyser
-
-    /**
      * Process an expression.
      */
     override def process (e : Exp, config : LambdaConfig) {
         super.process (e, config)
+
+        // Make an analyser for a tree for this expression
+        val tree = new LambdaTree (e)
+        val analyser = new Analyser (tree)
+
         // First conduct a semantic analysis check: compute the expression's
         // type and see if any errors occurred
         val messages = analyser.errors (e)

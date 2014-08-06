@@ -30,9 +30,10 @@ import scala.util.parsing.combinator.RegexParsers
  */
 trait Tests extends FunSuiteLike with BeforeAndAfter with BeforeAndAfterAll with Checkers {
 
-    import org.scalatest.Tag
-    import Comparison.{optsame, same}
+    import Comparison.{optsame, same, samecollection}
     import Messaging.Messages
+    import org.scalatest.Tag
+    import scala.collection.immutable.Seq
 
     /**
      * ScalaTest by default only shows the unqualified class name when
@@ -96,6 +97,26 @@ trait Tests extends FunSuiteLike with BeforeAndAfter with BeforeAndAfterAll with
     def assertNotOptSame (expected : Any) (actual : Any) {
         if (optsame (expected, actual)) {
             failExpectedTest (expected, actual, "not same object as ")
+        }
+    }
+
+    /**
+     * Analogous to ScalaTest's `assertResult` but it uses `samecollection` to compare
+     * two collections instead of equality.
+     */
+    def assertSameCollection (expected : Any) (actual : Any) {
+        if (!samecollection (expected, actual)) {
+            failExpectedTest (expected, actual, "same collection as ")
+        }
+    }
+
+    /**
+     * Analogous to ScalaTest's `assertResult` but it uses `samecollection` to compare
+     * two collections instead of equality.
+     */
+    def assertNotSameCollection (expected : Any) (actual : Any) {
+        if (samecollection (expected, actual)) {
+            failExpectedTest (expected, actual, "not same collection as ")
         }
     }
 

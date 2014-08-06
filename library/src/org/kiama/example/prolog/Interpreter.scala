@@ -72,7 +72,7 @@ class Interpreter {
      * Rename all of the variables in `t` to a unique name by appending
      * a unique count to the old name.
      */
-    def rename[T <: PrologTree] (t : T) : T = {
+    def rename[T <: PrologNode] (t : T) : T = {
         val count = uniqueNameCounter.next ()
         val r = everywheretd (rule[Var] {
             case Var (s) =>

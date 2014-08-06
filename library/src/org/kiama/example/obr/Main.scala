@@ -23,7 +23,6 @@ package org.kiama
 package example.obr
 
 import ObrTree.ObrInt
-import org.kiama.attribution.Attribution.initTree
 import org.kiama.util.{Console, CompilerWithConfig, Config, Emitter,
     ErrorEmitter, JLineConsole, OutputEmitter}
 import scala.collection.immutable.Seq
@@ -43,6 +42,7 @@ class ObrConfig (args : Seq[String], output : Emitter, error : Emitter) extends 
  */
 class Driver extends SyntaxAnalyser with CompilerWithConfig[ObrInt,ObrConfig] {
 
+    import ObrTree.ObrTree
     import org.kiama.example.obr.{RISCEncoder, RISCTransformer}
     import org.kiama.example.RISC.{RISC, RISCISA}
     import org.kiama.output.PrettyPrinter.pretty_any
@@ -63,7 +63,8 @@ class Driver extends SyntaxAnalyser with CompilerWithConfig[ObrInt,ObrConfig] {
         RISCLabels.reset ()
 
         // Conduct semantic analysis and report any errors
-        val analyser = new SemanticAnalyser
+        val tree = new ObrTree (ast)
+        val analyser = new SemanticAnalyser (tree)
         val messages = analyser.errors (ast)
         if (messages.length > 0) {
             report (messages, config.error)
@@ -76,7 +77,6 @@ class Driver extends SyntaxAnalyser with CompilerWithConfig[ObrInt,ObrConfig] {
             // Compile the source tree to a target tree
             val transformer = new RISCTransformer (analyser)
             val targettree = transformer.code (ast)
-            initTree (targettree)
 
             // Print out the target tree for debugging
             if (config.targetPrint ()) {
@@ -123,6 +123,7 @@ class ParserDriver extends Driver {
  */
 class SemanticDriver extends Driver {
 
+    import ObrTree.ObrTree
     import org.kiama.util.Messaging.report
 
     override def process (filename : String, ast : ObrInt, config : ObrConfig) {
@@ -131,8 +132,8 @@ class SemanticDriver extends Driver {
         SymbolTable.reset ()
 
         // Conduct semantic analysis and report any errors
-        val analyser = new SemanticAnalyser
-        initTree (ast)
+        val tree = new ObrTree (ast)
+        val analyser = new SemanticAnalyser (tree)
         val messages = analyser.errors (ast)
         if (messages.length > 0)
             report (messages, config.error)

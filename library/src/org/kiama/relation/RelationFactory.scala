@@ -1,7 +1,7 @@
 /*
  * This file is part of Kiama.
  *
- * Copyright (C) 2008-2014 Anthony M Sloane, Macquarie University.
+ * Copyright (C) 2014 Anthony M Sloane, Macquarie University.
  *
  * Kiama is free software: you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License as published by the
@@ -19,28 +19,21 @@
  */
 
 package org.kiama
-package attribution
+package relation
+
+import scala.language.higherKinds
 
 /**
- * Support for the `Attributable` class.
+ * Interface for factories that can create relations. `Repr` is the
+ * representation type of the relations that the factory produces.
  */
-object AttributableSupport {
+trait RelationFactory[Repr[_,_]] {
+
+    import scala.collection.immutable.Seq
 
     /**
-     * Deep clone the given `Attributable` tree.
+     * Make a relation from its graph.
      */
-    def deepclone[T <: Attributable] (t : T) : T = {
-
-        import org.kiama.rewriting.Rewriter.{everywherebu, rewrite, rule}
-
-        val deepcloner =
-            everywherebu (rule[Attributable] {
-                case n if !n.hasChildren =>
-                    n.clone ()
-            })
-
-        rewrite (deepcloner) (t)
-
-    }
+    def fromGraph[T,U] (graph : Seq[(T,U)]) : Repr[T,U]
 
 }

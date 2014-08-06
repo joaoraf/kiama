@@ -22,14 +22,14 @@
 package org.kiama
 package example.picojava
 
+import PicoJavaTree.PicoJavaTree
 import org.kiama.rewriting.Rewriter
 
 /**
  * Transform a program into an equivalent obsfuscated program.
  */
-object Obfuscator extends Rewriter {
+class Obfuscator (analysis : NameResolution) extends Rewriter {
 
-    import NameResolution._
     import PicoJavaTree._
     import org.kiama.attribution.Attribution._
 
@@ -110,7 +110,7 @@ object Obfuscator extends Rewriter {
         val obfuscateNormalUse =
             rule[Use] {
                 case u =>
-                    u.copy (Name = declNames.getOrElse (u->decl, "$UNDEF$"))
+                    u.copy (Name = declNames.getOrElse (analysis.decl (u), "$UNDEF$"))
             }
 
         /**
@@ -140,7 +140,6 @@ object Obfuscator extends Rewriter {
 
         // Actually make the transformation
 
-        initTree (p)
         rewrite (obfuscateProgram) (p)
         // rewrite (obfuscateProgram2) (p)
 

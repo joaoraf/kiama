@@ -488,42 +488,6 @@ trait AttributionCore extends AttributionCommon with Memoiser {
         new CachedParamAttribute (name, f)
 
     /**
-     * Define an attribute of `T` nodes of type `U` by the function `f`, which
-     * takes the current node and its parent as its arguments. `T` must be
-     * a sub-type of `Attributable` so that parents can be accessed generically.
-     */
-    def childAttr[T <: Attributable,U] (f : T => Attributable => U) : CachedAttribute[T,U] =
-        macro AttributionMacros.childAttrMacro[T,U,CachedAttribute[T,U]]
-
-    /**
-     * As for the other `childAttr` with the first argument specifying a name for
-     * the constructed attribute.
-     */
-    def childAttr[T <: Attributable,U] (name : String, f : T => Attributable => U) : CachedAttribute[T,U] =
-        attr (name, (t : T) => f (t) (t.parent))
-
-    /**
-     * Define an optionally named attribute as per `attr`, except that the
-     * attribute must have a tree value and will be spliced into the tree to
-     * have the same parent as the node on which it is defined.  This kind of
-     * attribute is used to generate new trees that must share context
-     * with the node on which they are defined.
-     */
-    def tree[T <: Attributable,U <: Attributable] (f : T => U) : CachedAttribute[T,U] =
-        macro AttributionMacros.treeMacro[T,U,CachedAttribute[T,U]]
-
-    /**
-     * As for the other `tree` with the first argument specifying a name for
-     * the constructed attribute.
-     */
-    def tree[T <: Attributable,U <: Attributable] (name : String, f : T => U) : CachedAttribute[T,U] =
-        attr (name, (t : T) => {
-                        val u = f (t)
-                        u.parent = t.parent
-                        u
-                    })
-
-    /**
      * Implicitly converts functions to dynamic attributes. This conversion allows us
      * to use simpler types for dynamic attributes, but still extend them later.
      */

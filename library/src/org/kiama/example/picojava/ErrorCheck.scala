@@ -29,16 +29,15 @@
 package org.kiama
 package example.picojava
 
-object ErrorCheck {
+import PicoJavaTree.PicoJavaTree
 
-    import NameResolution._
+class ErrorCheck (val tree : PicoJavaTree) extends NameResolution with
+        TypeAnalyser with NullObjects with PredefinedTypes {
+
     import PicoJavaTree._
-    import PredefinedTypes._
-    import TypeAnalyser._
     import org.kiama.attribution.Attribution._
     import org.kiama.rewriting.Rewriter.collectall
     import org.kiama.util.Messaging.message
-    import org.kiama.util.Patterns.HasParent
     import scala.collection.immutable.Seq
 
     /**
@@ -85,19 +84,19 @@ object ErrorCheck {
     val errors =
         attr (collectall {
 
-            case a : AssignStmt if !isSubtypeOf (a.Value->tipe) (a.Variable->tipe) =>
-                message (a, s"Can not assign a variable of type ${(a.Variable->tipe).Name} to a value of type ${(a.Value->tipe).Name}")
+            case a : AssignStmt if !isSubtypeOf (tipe (a.Value)) (tipe (a.Variable)) =>
+                message (a, s"Can not assign a variable of type ${tipe (a.Variable).Name} to a value of type ${tipe (a.Value).Name}")
 
             case d : ClassDecl if hasCycleOnSuperclassChain (d) =>
                 message (d, s"Cyclic inheritance chain for class ${d.Name}")
 
             case s : WhileStmt =>
                 message (s, "Condition must be a boolean expression",
-                        !isSubtypeOf (s.Condition->tipe) (booleanType (s))) ++
+                        !isSubtypeOf (tipe (s.Condition)) (booleanType (s))) ++
                 message (s, "Condition must be a value",
                          !isValue (s.Condition))
 
-            case i : IdnUse if isUnknown (i->decl) && (!isQualified (i) || !isUnknown (i->qualifier->tipe)) =>
+            case i : IdnUse if isUnknown (decl (i)) && (!isQualified (i) || !isUnknown (tipe (qualifier (i)))) =>
                 message (i, s"Unknown identifier ${i.Name}")
 
         })
@@ -113,8 +112,8 @@ object ErrorCheck {
      */
     val isQualified : IdnUse => Boolean =
         attr {
-            case HasParent (_, _ : Dot) => true
-            case _                      => false
+            case tree.parent (_ : Dot) => true
+            case _                        => false
         }
 
     /**
@@ -132,7 +131,7 @@ object ErrorCheck {
      */
     val qualifier : IdnUse => Access =
         attr {
-            case HasParent (_, Dot (o, _)) =>
+            case tree.parent (Dot (o, _)) =>
                 o
             case _ =>
                 sys.error ("Can not compute qualifier for non qualified names")

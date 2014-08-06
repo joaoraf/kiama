@@ -30,7 +30,6 @@ class SemanticAnalysisTests extends Tests {
 
     import GrammarTree._
     import PrettyPrinter._
-    import org.kiama.attribution.Attribution.initTree
     import org.kiama.util.{Message, Messaging}
     import scala.collection.immutable.Seq
 
@@ -64,7 +63,8 @@ class SemanticAnalysisTests extends Tests {
 
     val g1 = Grammar (g1r1, Seq (g1r2, g1r3, g1r4))
 
-    val g1analyser = new SemanticAnalyser
+    val tree1 = new GrammarTree (g1)
+    val g1analyser = new SemanticAnalyser (tree1)
 
     /**
      *   S -> E $
@@ -87,7 +87,8 @@ class SemanticAnalysisTests extends Tests {
 
     val g2 = Grammar (g2r1, Seq (g2r2, g2r3, g2r4, g2r5, g2r6))
 
-    val g2analyser = new SemanticAnalyser
+    val tree2 = new GrammarTree (g2)
+    val g2analyser = new SemanticAnalyser (tree2)
 
     /**
      *   S -> E F $
@@ -101,13 +102,8 @@ class SemanticAnalysisTests extends Tests {
 
     val g3 = Grammar (g3r1, Seq (g3r2, g3r3))
 
-    val g3analyser = new SemanticAnalyser
-
-    override def beforeAll () {
-        initTree (g1)
-        initTree (g2)
-        initTree (g3)
-    }
+    val tree3 = new GrammarTree (g3)
+    val g3analyser = new SemanticAnalyser (tree3)
 
     test ("g1: has no semantic errors") {
         assertResult (0) (g1analyser.errors (g1).length)

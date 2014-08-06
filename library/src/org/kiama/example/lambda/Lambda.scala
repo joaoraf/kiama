@@ -28,17 +28,20 @@ import org.kiama.util.{ParsingREPL, PositionedParserUtilities, Profiler}
  */
 object LambdaTree {
 
-    import org.kiama.util.TreeNode
-
     /**
      * Identifiers are represented as strings.
      */
     type Idn = String
 
     /**
+     * Base type for all lambda tree nodes.
+     */
+    sealed abstract class LambdaNode
+
+    /**
      * Expressions.
      */
-    sealed abstract class Exp extends TreeNode
+    sealed abstract class Exp extends LambdaNode
 
     /**
      * Numeric expressions.

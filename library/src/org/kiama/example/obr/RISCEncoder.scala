@@ -129,13 +129,6 @@ class RISCEncoder {
         code.result ()
 
     /**
-     * Generate a brand new target label. Shares counter with the transformation
-     * phase so that labels are unique.
-     */
-    def gentarget () : RISCLabel =
-        RISCLabel (genlabelnum ())
-
-    /**
      * Register allocations:
      *      $0          always set to 0
      *      $1-$26      temporaries
@@ -157,34 +150,6 @@ class RISCEncoder {
      */
     val memreg = 27
 
-    /**
-     * Register allocation - we use an attribute grammar to implement
-     * a stack style allocation of registers. Unless a specific node type
-     * is handled by a special case, this attribution assumes that the
-     * children of each node will be evaluated in left to right order.
-     */
-     val reg : RISCTree => RegNo =
-        childAttr (
-            d => {
-                // Base case
-                case _ : RISCProg                   => firsttemp
-
-                // Special cases for specific constructs
-                case p : Cond                       => p->reg
-
-                // Default allocation algorithm for all other nodes
-                case p : RISCTree if d.isFirst      => p->reg
-                case _                              =>
-                    d.prev[RISCTree] match {
-                        case s : NeedsRegister  =>
-                            if (s->reg >= lasttemp)
-                                sys.error ("out of local registers")
-                            (s->reg) + 1
-                        case s =>
-                            s->reg
-                    }
-            }
-        )
 
     /**
      * Encode the given RISC program by emitting the prologue, then the
@@ -192,16 +157,52 @@ class RISCEncoder {
      */
 
     def encode (p : RISCProg) {
+
+        // Tree for this RISC progarm
+        val tree = new RISCTree (p)
+
+        /**
+         * Register allocation - we use an attribute grammar to implement
+         * a stack style allocation of registers. Unless a specific node type
+         * is handled by a special case, this attribution assumes that the
+         * children of each node will be evaluated in left to right order.
+         */
+        lazy val reg : RISCNode => RegNo =
+            attr {
+                case tree.parent.pair (n, p) =>
+                    p match {
+                        // Base case
+                        case _ : RISCProg =>
+                            firsttemp
+
+                        // Special cases for specific constructs
+                        case p : Cond =>
+                            reg (p)
+
+                        case _ =>
+                            n match {
+                                case tree.prev (s : NeedsRegister) =>
+                                    if (reg (s) >= lasttemp)
+                                        sys.error ("out of local registers")
+                                    reg (s) + 1
+                                case tree.prev (s) =>
+                                    reg (s)
+                                case _ =>
+                                    reg (p)
+                            }
+                    }
+            }
+
         resetcode ()
 
         emitcomment("Prologue")
         emit (MOVI (memreg, 0, 0))
 
-        val exitlab = gentarget ()
+        val exitlab = genlabelnum ()
         (p.insns) map item
 
         emitcomment("Epilogue")
-        emit (Target (exitlab))
+        emit (Target (RISCLabel (exitlab)))
         emit (RET (0))
 
         /**
@@ -214,12 +215,12 @@ class RISCEncoder {
 
                 case Beq (cond, Label (dest)) =>
                     datum (cond)
-                    emit (CMPI (cond->reg, 0))
+                    emit (CMPI (reg (cond), 0))
                     emit (BEQ (RISCLabel (dest)))
 
                 case Bne (cond, Label (dest)) =>
                     datum (cond)
-                    emit (CMPI (cond->reg, 0))
+                    emit (CMPI (reg (cond), 0))
                     emit (BNE (RISCLabel (dest)))
 
                 case Jmp (Label (dest)) =>
@@ -229,22 +230,22 @@ class RISCEncoder {
                     emit (Target (RISCLabel (lab.num)))
 
                 case Ret () =>
-                    emit (BR (exitlab))
+                    emit (BR (RISCLabel (exitlab)))
 
                 // TODO check offsets are 16 bit (see toShort casts)
                 case StW (Indexed (Local (locoff), indoff), d) =>
                     datum (indoff)
                     datum (d)
-                    emit (ADD (indoff->reg, indoff->reg, memreg))
-                    emit (STW (d->reg, indoff->reg, locoff.toShort))
+                    emit (ADD (reg (indoff), reg (indoff), memreg))
+                    emit (STW (reg (d), reg (indoff), locoff.toShort))
 
                 case StW (Local(offset), d) =>
                     datum (d)
-                    emit (STW (d->reg, memreg, offset.toShort))
+                    emit (STW (reg (d), memreg, offset.toShort))
 
                 case Write (d) =>
                     datum (d)
-                    emit (WRD (d->reg))
+                    emit (WRD (reg (d)))
                     emit (WRL ())
             }
         }
@@ -253,14 +254,14 @@ class RISCEncoder {
          * Encode a comparison node
          */
         def compare (op : (RISCLabel) => Instr, l : Datum, r : Datum, d : Datum) {
-            val lab = gentarget ()
+            val lab = genlabelnum ()
             datum (l)
             datum (r)
-            emit (CMP (l->reg, r->reg))
-            emit (MOVI (d->reg, 0, 1))
-            emit (op (lab))
-            emit (MOVI (d->reg, 0, 0))
-            emit (Target (lab))
+            emit (CMP (reg (l), reg (r)))
+            emit (MOVI (reg (d), 0, 1))
+            emit (op (RISCLabel (lab)))
+            emit (MOVI (reg (d), 0, 0))
+            emit (Target (RISCLabel (lab)))
         }
 
         /**
@@ -268,7 +269,7 @@ class RISCEncoder {
          */
         def arith1 (op : (RegNo, RegNo) => Instr, e : Datum, d : Datum) {
             datum (e)
-            emit (op (d->reg, e->reg))
+            emit (op (reg (d), reg (e)))
         }
 
         /**
@@ -277,7 +278,7 @@ class RISCEncoder {
         def arith2 (op : (RegNo, RegNo, RegNo) => Instr, l : Datum, r : Datum, d : Datum) {
             datum (l)
             datum (r)
-            emit (op (d->reg, l->reg, r->reg))
+            emit (op (reg (d), reg (l), reg (r)))
         }
 
         /**
@@ -303,13 +304,13 @@ class RISCEncoder {
                     arith1 (SUB.apply (_ : RegNo, 0, _ : RegNo), e, d)
 
                 case Not (e) =>
-                    val lab = gentarget ()
+                    val lab = genlabelnum ()
                     datum (e)
-                    emit (CMPI (e->reg, 0))
-                    emit (MOVI (d->reg, 0, 0))
-                    emit (BNE (lab))
-                    emit (MOVI (d->reg, 0, 1))
-                    emit (Target (lab))
+                    emit (CMPI (reg (e), 0))
+                    emit (MOVI (reg (d), 0, 0))
+                    emit (BNE (RISCLabel (lab)))
+                    emit (MOVI (reg (d), 0, 1))
+                    emit (Target (RISCLabel (lab)))
 
                 case SubW (l, r) =>
                     arith2 (SUB.apply _, l, r, d)
@@ -341,18 +342,18 @@ class RISCEncoder {
                  * other Datums.
                  */
                 case Cond (cond, t, f) =>
-                    val lab1 = gentarget ()
-                    val lab2 = gentarget ()
+                    val lab1 = genlabelnum ()
+                    val lab2 = genlabelnum ()
                     datum (cond)
-                    emit (CMPI (cond->reg, 0))
-                    emit (BEQ (lab1))
+                    emit (CMPI (reg (cond), 0))
+                    emit (BEQ (RISCLabel (lab1)))
                     datum (t)
-                    emit (MOV (d->reg, 0, t->reg))
-                    emit (BR (lab2))
-                    emit (Target (lab1))
+                    emit (MOV (reg (d), 0, reg (t)))
+                    emit (BR (RISCLabel (lab2)))
+                    emit (Target (RISCLabel (lab1)))
                     datum (f)
-                    emit (MOV (d->reg, 0, f->reg))
-                    emit (Target (lab2))
+                    emit (MOV (reg (d), 0, reg (f)))
+                    emit (Target (RISCLabel (lab2)))
 
                 /**
                  * An integer leaf seems a little bit more complicated
@@ -362,11 +363,11 @@ class RISCEncoder {
                  */
                 case IntDatum (num) =>
                     if (num == num.toShort)
-                        emit (MOVI (d->reg,0,num.toShort))
+                        emit (MOVI (reg (d),0,num.toShort))
                     else {
-                        emit (MOVI (d->reg, 0, 16))
-                        emit (MOVI (d->reg, d->reg, (num >> 16).toShort))
-                        emit (ORI (d->reg, d->reg, num.toShort))
+                        emit (MOVI (reg (d), 0, 16))
+                        emit (MOVI (reg (d), reg (d), (num >> 16).toShort))
+                        emit (ORI (reg (d), reg (d), num.toShort))
                     }
 
                 /**
@@ -375,17 +376,17 @@ class RISCEncoder {
                  */
                 case LdW (Indexed (Local (locoff), indoff)) =>
                     datum (indoff)
-                    emit (ADD (indoff->reg, indoff->reg, memreg))
-                    emit (LDW (d->reg, indoff->reg, locoff.toShort))
+                    emit (ADD (reg (indoff), reg (indoff), memreg))
+                    emit (LDW (reg (d), reg (indoff), locoff.toShort))
 
                 case LdW (Local (offset)) =>
-                    emit (LDW (d->reg, memreg, offset.toShort))
+                    emit (LDW (reg (d), memreg, offset.toShort))
 
                 /**
                  * Read an integer value from the terminal.
                  */
                 case Read () =>
-                    emit (RD (d->reg))
+                    emit (RD (reg (d)))
 
                 /**
                  * Encode a compound sequence datum.

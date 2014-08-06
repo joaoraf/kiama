@@ -1854,6 +1854,49 @@ class RewriterTests extends Tests with Generator {
         }
     }
 
+    // Cloning tests
+
+    test ("deep cloning a term with sharing gives an equal but not eq term") {
+        import org.kiama.example.imperative.ImperativeTree._
+        import org.kiama.relation.Tree
+
+        val t = Add (Mul (Add (Num (1), Num (2)),
+                          Sub (Add (Num (1), Num (2)),
+                               Add (Num (1), Num (2)))),
+                     Add (Add (Add (Num (3), Num (4)),
+                               Num (5)),
+                          Add (Num (3), Num (4))))
+        val u = Add (Mul (Add (Num (1), Num (2)),
+                          Sub (Add (Num (1), Num (2)),
+                               Add (Num (1), Num (2)))),
+                     Add (Add (Add (Num (3), Num (4)),
+                               Num (5)),
+                          Add (Num (3), Num (4))))
+
+        val ttree = new Tree[Exp,Exp] (t)
+        val ct : Add = deepclone (t)
+
+        // Must get the right answer (==)
+        assertResult (u) (ct)
+
+        // Must not get the original term (eq)
+        // Check root and one level down in case we just clone root
+        assertNotSame (t) (ct)
+        assertNotSame (t.l) (ct.l)
+        assertNotSame (t.r) (ct.r)
+
+        // println ("is")
+
+        // Make sure that the new term is actually a tree. If it's not, trying
+        // to make a Tree from it will throw a RuntimeException.
+        try {
+            new Tree[Exp,Exp] (ct)
+        } catch {
+            case e : RuntimeException =>
+                fail (s"deepclone didn't produce a tree: $ct")
+        }
+    }
+
     // Strategy naming tests
 
     val myrule1 = rule[Num] {

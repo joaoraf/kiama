@@ -26,10 +26,15 @@ package example.lambda2
  */
 object LambdaTree {
 
+    import org.kiama.relation.Tree
     import org.kiama.rewriting.Rewriter.{congruence, rulefs}
     import org.kiama.rewriting.Strategy
-    import org.kiama.util.TreeNode
     import scala.collection.immutable.Seq
+
+    /**
+     * Tree type for lambda calculus programs.
+     */
+    type LambdaTree = Tree[Exp,Exp]
 
     /**
      * Identifiers are represented as strings.
@@ -39,7 +44,7 @@ object LambdaTree {
     /**
      * Expressions.
      */
-    sealed abstract class Exp extends TreeNode
+    sealed abstract class Exp extends Product
 
     /**
      * Numeric expressions.
@@ -86,7 +91,7 @@ object LambdaTree {
     /**
      * Types.
      */
-    sealed abstract class Type extends TreeNode
+    sealed abstract class Type extends Product
 
     /**
      * Primitive integer type.

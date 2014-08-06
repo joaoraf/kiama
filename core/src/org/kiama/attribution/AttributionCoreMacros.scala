@@ -34,9 +34,6 @@ object AttributionMacros {
     def attrMacro[T,U,A] (c : blackbox.Context) (f : c.Expr[T => U]): c.Expr[A] =
         makeCallWithName (c)
 
-    def childAttrMacro[T <: Attributable,U,A] (c : blackbox.Context) (f : c.Expr[T => Attributable => U]): c.Expr[A] =
-        makeCallWithName (c)
-
     def circularMacro[T,U,A] (c : blackbox.Context) (init : c.Expr[U]) (f : c.Expr[T => U]): c.Expr[A] =
         makeCallWithName (c)
 
@@ -44,9 +41,6 @@ object AttributionMacros {
         makeCallWithName (c)
 
     def paramAttrMacro[V,T,U,P] (c : blackbox.Context) (f : c.Expr[V => T => U]): c.Expr[P] =
-        makeCallWithName (c)
-
-    def treeMacro[T <: Attributable,U,A] (c : blackbox.Context) (f : c.Expr[T => U]): c.Expr[A] =
         makeCallWithName (c)
 
 }

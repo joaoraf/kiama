@@ -21,8 +21,8 @@
 package org.kiama
 package example.dataflow
 
-import org.kiama.attribution.Attribution._
 import DataflowTree._
+import org.kiama.attribution.Attribution._
 
 /**
  * Control flow interface.
@@ -30,10 +30,14 @@ import DataflowTree._
 trait ControlFlow {
 
     /**
+     * The tree with respect to compute the flow.
+     */
+    def tree : DataflowTree
+
+    /**
      * Control flow successor relation.
      */
     val succ : Stm => Set[Stm]
-
 
     /**
      * Control flow default successor relation.
@@ -49,24 +53,31 @@ trait ControlFlowImpl extends ControlFlow {
 
     val succ : Stm => Set[Stm] =
         dynAttr {
-            case If (_, s1, s2)   => Set (s1, s2)
-            case t @ While (_, s) => t->following + s
-            case Return (_)       => Set ()
-            case Block (s :: _)   => Set (s)
-            case s                => s->following
+            case If (_, s1, s2) =>
+                Set (s1, s2)
+            case t @ While (_, s) =>
+                following (t) + s
+            case Return (_) =>
+                Set ()
+            case Block (s :: _) =>
+                Set (s)
+            case s =>
+                following (s)
         }
 
     val following : Stm => Set[Stm] =
-        dynAttr (
-            (s : Stm) =>
-                s.parent match {
-                    case t @ If (_, _, _)      => t->following
-                    case t @ While (_, _)      => Set (t)
-                    case b : Block if s.isLast => b->following
-                    case Block (_)             => Set (s.next[Stm])
-                    case _                     => Set ()
-                }
-        )
+        dynAttr {
+            case tree.parent (t : If) =>
+                following (t)
+            case tree.parent (t : While) =>
+                Set (t)
+            case tree.parent.pair (tree.next (n), _ : Block) =>
+                Set (n)
+            case tree.parent (b : Block) =>
+                following (b)
+            case _ =>
+                Set ()
+        }
 
 }
 
@@ -144,9 +155,11 @@ trait LivenessImpl extends Liveness {
 
     val out : Stm => Set[Var] =
         circular (Set[Var]()) (
-            s => (s->succ) flatMap (in)
+            s => succ (s) flatMap (in)
         )
 
 }
 
-trait Dataflow extends LivenessImpl with VariablesImpl with ControlFlowImpl
+trait DataflowImpl extends LivenessImpl with VariablesImpl with ControlFlowImpl
+
+class Dataflow (val tree : DataflowTree) extends DataflowImpl

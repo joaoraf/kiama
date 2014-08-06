@@ -22,7 +22,6 @@ package org.kiama
 package util
 
 import java.io.Reader
-import org.kiama.attribution.Attributable
 import scala.collection.immutable.Seq
 import scala.util.parsing.combinator.RegexParsers
 
@@ -134,14 +133,10 @@ trait CompilerBase[T, C <: Config] extends Profiler {
 }
 
 /**
- * A compiler that uses RegexParsers to produce Attributable ASTs. The AST
- * is initialised with `initTree` by `process`. Override it and call it
- * before performing specific attribution. `C` is the type of the compiler
- * configuration.
+ * A compiler that uses RegexParsers to produce ASTs. `C` is the type of the
+ * compiler configuration.
  */
-trait CompilerWithConfig[T <: Attributable, C <: Config] extends CompilerBase[T,C] with RegexParsers {
-
-    import org.kiama.attribution.Attribution.initTree
+trait CompilerWithConfig[T,C <: Config] extends CompilerBase[T,C] with RegexParsers {
 
     /**
      * The actual parser used to produce the AST.
@@ -165,7 +160,6 @@ trait CompilerWithConfig[T <: Attributable, C <: Config] extends CompilerBase[T,
      */
     override def process (filename : String, ast : T, config : C) {
         super.process (filename, ast, config)
-        initTree (ast)
     }
 
 }
@@ -174,7 +168,7 @@ trait CompilerWithConfig[T <: Attributable, C <: Config] extends CompilerBase[T,
  * Specialisation of `CompilerWithConfig` that uses the default configuration
  * type.
  */
-trait Compiler[T <: Attributable] extends CompilerWithConfig[T,Config] {
+trait Compiler[T] extends CompilerWithConfig[T,Config] {
 
     def createConfig (args : Seq[String],
                       output : Emitter = new OutputEmitter,

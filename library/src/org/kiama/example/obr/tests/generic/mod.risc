@@ -5,8 +5,8 @@
     stw $1, $27, 0
     ! Write(SequenceDatum(List(StW(Local(4),IntDatum(4)), Bne(LdW(Local(4)),Label(1)), StW(Local(8),IntDatum(0)), Jmp(Label(2)), LabelDef(Label(1))),RemW(IntDatum(15),LdW(Local(4)))))
     ! StW(Local(4),IntDatum(4))
-    movi $2, $0, 4
-    stw $2, $27, 4
+    movi $1, $0, 4
+    stw $1, $27, 4
     ! Bne(LdW(Local(4)),Label(1))
     ldw $1, $27, 4
     cmpi $1, 0

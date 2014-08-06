@@ -34,8 +34,8 @@ import org.kiama.util.RegexParserTests
 
 class ErrorTests extends RegexParserTests with SyntaxAnalyser {
 
-    import org.kiama.attribution.Attribution.initTree
-    import org.kiama.example.picojava.ErrorCheck.errors
+    import org.kiama.example.picojava.ErrorCheck
+    import org.kiama.example.picojava.PicoJavaTree.PicoJavaTree
     import org.kiama.util.Message
     import org.kiama.util.Positions.positionAt
 
@@ -65,8 +65,9 @@ class ErrorTests extends RegexParserTests with SyntaxAnalyser {
 """;
         assertParseCheck (text, program) {
             ast =>
-                initTree (ast)
-                assertMessages (ast->errors,
+                val tree = new PicoJavaTree (ast)
+                val analyser = new ErrorCheck (tree)
+                assertMessages (analyser.errors (ast),
                     Message ("Cyclic inheritance chain for class A", positionAt (3, 3)),
                     Message ("Unknown identifier b", positionAt (5, 9)),
                     Message ("Can not assign a variable of type boolean to a value of type A", positionAt (7, 5)),
