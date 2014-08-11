@@ -5,7 +5,7 @@ import sbtunidoc.Plugin.UnidocKeys.unidoc
 
 // Main settings
 
-version in ThisBuild := "1.7.0"
+version in ThisBuild := "2.0.0-SNAPSHOT"
 
 organization in ThisBuild := "com.googlecode.kiama"
 
@@ -20,9 +20,10 @@ scalacOptions in ThisBuild :=
         "-deprecation",
         "-feature",
         "-sourcepath", baseDirectory.value.getAbsolutePath,
-        "-unchecked"
-        // "-Xfatal-warnings",
-        // "-Xlint"
+        "-unchecked",
+        "-Xfatal-warnings",
+        "-Xlint",
+        "-Xcheckinit"
     )
 
 // Dependency resolution
@@ -89,10 +90,6 @@ shellPrompt in ThisBuild := {
 // No main class since Kiama is a library
 
 mainClass in ThisBuild := None
-
-// Don't buffer log messages during testing
-
-logBuffered in ThisBuild := false
 
 // unidoc
 

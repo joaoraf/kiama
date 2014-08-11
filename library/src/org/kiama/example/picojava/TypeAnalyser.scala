@@ -29,12 +29,11 @@
 package org.kiama
 package example.picojava
 
-object TypeAnalyser {
+trait TypeAnalyser {
 
-    import NameResolution._
-    import NullObjects._
+    self : NameResolution with NullObjects with PredefinedTypes =>
+
     import PicoJavaTree._
-    import PredefinedTypes._
     import org.kiama.attribution.Attribution._
 
     /**
@@ -60,14 +59,14 @@ object TypeAnalyser {
      * eq Dot.type() = getIdnUse().type();
      * eq BooleanLiteral.type() = booleanType();
      */
-    val tipe : PicoJavaTree => TypeDecl =
+    val tipe : PicoJavaNode => TypeDecl =
         attr {
             case t : TypeDecl       => t
-            case v : VarDecl        => v.Type->decl->tipe
-            case i : IdnUse         => i->decl->tipe
-            case d : Dot            => d.IdnUse->tipe
-            case b : BooleanLiteral => b->booleanType
-            case t                  => t->unknownDecl
+            case v : VarDecl        => tipe (decl (v.Type))
+            case i : IdnUse         => tipe (decl (i))
+            case d : Dot            => tipe (d.IdnUse)
+            case b : BooleanLiteral => booleanType (b)
+            case t                  => unknownDecl (t)
         }
 
     /**
@@ -83,8 +82,8 @@ object TypeAnalyser {
         paramAttr {
              typedecl => {
                  case UnknownDecl (_) => true
-                 case c : ClassDecl   => typedecl->isSuperTypeOfClassDecl (c)
-                 case t : TypeDecl    => typedecl->isSuperTypeOf (t)
+                 case c : ClassDecl   => isSuperTypeOfClassDecl (c) (typedecl)
+                 case t : TypeDecl    => isSuperTypeOf (t) (typedecl)
              }
         }
 
@@ -117,7 +116,7 @@ object TypeAnalyser {
             typedecl => {
                 case UnknownDecl (_) => true
                 case t : TypeDecl    =>
-                    (t == typedecl) || (typedecl->superClass != null) && (isSubtypeOf (typedecl->superClass) (t))
+                    (t == typedecl) || (superClass (typedecl) != null) && (isSubtypeOf (superClass (typedecl)) (t))
             }
         }
 
@@ -137,7 +136,7 @@ object TypeAnalyser {
             c =>
                 c.Superclass match {
                     case Some (i) =>
-                        i->decl match {
+                        decl (i) match {
                             case sc : ClassDecl if !hasCycleOnSuperclassChain (c) => sc
                             case _                                                => null
                         }
@@ -160,7 +159,7 @@ object TypeAnalyser {
             c =>
                 c.Superclass match {
                     case Some (i) =>
-                        i->decl match {
+                        decl (i) match {
                             case sc : ClassDecl => hasCycleOnSuperclassChain (sc)
                             case _              => false
                         }
@@ -182,7 +181,7 @@ object TypeAnalyser {
      */
     val isValue : Exp => Boolean =
         attr {
-            case i : IdnUse => ! (i->decl).isInstanceOf[TypeDecl] // replace this one
+            case i : IdnUse => ! decl (i).isInstanceOf[TypeDecl] // replace this one
             // with this one, when the rewrites are in:
             // case t : TypeUse => false
             case d : Dot   => isValue (d.IdnUse)

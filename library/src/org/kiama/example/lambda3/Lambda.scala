@@ -30,12 +30,16 @@ import org.kiama.util.{ParsingREPL, PositionedParserUtilities}
 object LambdaTree {
 
     import org.kiama.rewriting.NominalTree.{Bind, Name, Trans}
-    import org.kiama.util.TreeNode
+
+    /**
+     * Base type for all lambda tree nodes.
+     */
+    sealed abstract class LambdaNode
 
     /**
      * Lambda calculus expressions.
      */
-    abstract class Exp extends TreeNode
+    sealed abstract class Exp extends LambdaNode
 
     /**
      * Numeric expression.
@@ -70,7 +74,7 @@ object LambdaTree {
      * type T when executed. These values are not in the term language but
      * are used to represent user commands.
      */
-    abstract class Query[T] extends TreeNode
+    sealed abstract class Query[T] extends LambdaNode
 
     /**
      * A query that determines the alpha equivalence of two expressions.

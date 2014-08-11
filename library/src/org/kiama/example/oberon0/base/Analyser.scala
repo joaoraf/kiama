@@ -22,19 +22,31 @@ package org.kiama
 package example.oberon0
 package base
 
-trait Analyser {
+trait Analyser extends SymbolTable {
 
     import org.kiama.attribution.Attribution.attr
+    import org.kiama.attribution.Decorators
     import org.kiama.rewriting.Rewriter.collectall
     import org.kiama.util.Messaging.{Messages, noMessages}
-    import source.SourceTree
+    import source.SourceNode
+    import source.SourceTree.SourceTree
+
+    /**
+     * The tree in which this analysis is being performed.
+     */
+    def tree : SourceTree
+
+    /**
+     * Decorators on the analysed tree.
+     */
+    lazy val decorators = new Decorators (tree)
 
     /**
      * The semantic errors for a tree.
      */
     val errors =
         attr (collectall {
-            case n : SourceTree =>
+            case n : SourceNode =>
                 errorsDef (n)
         })
 
@@ -42,7 +54,7 @@ trait Analyser {
      * The error checking for this level, overridden to extend at later
      * levels. No errors are collected at this level.
      */
-    def errorsDef (n : SourceTree) : Messages =
+    def errorsDef (n : SourceNode) : Messages =
         noMessages
 
 }

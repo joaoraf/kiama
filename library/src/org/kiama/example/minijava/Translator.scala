@@ -21,10 +21,12 @@
 package org.kiama
 package example.minijava
 
+import MiniJavaTree.MiniJavaTree
+
 /**
  * Translator from MiniJava source programs to JVM target programs.
  */
-object Translator {
+class Translator (tree : MiniJavaTree) {
 
     import JVMTree._
     import MiniJavaTree._
@@ -54,14 +56,14 @@ object Translator {
          * Return the number of arguments that the method containing an
          * node has, or zero if the node doesn't occur in a method.
          */
-        lazy val argCount : MiniJavaTree => Int =
+        lazy val argCount : MiniJavaNode => Int =
             attr {
-                case n if n.isRoot =>
-                    0
                 case methodBody : MethodBody =>
                     methodBody.args.length
-                case n =>
-                    (n.parent[MiniJavaTree])->argCount
+                case tree.parent (p) =>
+                    argCount (p)
+                case _ =>
+                    0
             }
 
         /**
@@ -95,10 +97,10 @@ object Translator {
          * local variable.
          */
         def locnum (idnuse : IdnUse) : Int = {
-            val numargs = idnuse->argCount
+            val numargs = argCount (idnuse)
             analyser.entity (idnuse) match {
                 case ArgumentEntity (decl) =>
-                    decl.index
+                    tree.index (decl)
 
                 case varEntity : VariableEntity =>
                     numargs + varnum (varEntity)
@@ -264,11 +266,13 @@ object Translator {
         def translateIdnLoad (idnuse : IdnUse) {
 
             def loadField (field : Field) {
-                val cls = field.parent[ClassBody].parent[Class]
-                val className = cls.name.idn
-                val fieldName = field.name.idn
-                gen (Aload (0))
-                gen (GetField (s"$className/$fieldName", translateType (field.tipe)))
+                field match {
+                    case tree.parent (tree.parent (cls : Class)) =>
+                        val className = cls.name.idn
+                        val fieldName = field.name.idn
+                        gen (Aload (0))
+                        gen (GetField (s"$className/$fieldName", translateType (field.tipe)))
+                }
             }
 
             def loadLocal (tipe : Type) {
@@ -300,12 +304,14 @@ object Translator {
         def translateIdnStore (idnuse : IdnUse, exp : Expression) {
 
             def storeField (field : Field) {
-                val cls = field.parent[ClassBody].parent[Class]
-                val className = cls.name.idn
-                val fieldName = field.name.idn
-                gen (Aload (0))
-                translateExp (exp)
-                gen (PutField (s"$className/$fieldName", translateType (field.tipe)))
+                field match {
+                    case tree.parent (tree.parent (cls : Class)) =>
+                        val className = cls.name.idn
+                        val fieldName = field.name.idn
+                        gen (Aload (0))
+                        translateExp (exp)
+                        gen (PutField (s"$className/$fieldName", translateType (field.tipe)))
+                }
             }
 
             def storeLocal (tipe : Type) {

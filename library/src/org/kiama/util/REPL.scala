@@ -21,7 +21,6 @@
 package org.kiama
 package util
 
-import org.kiama.attribution.Attributable
 import scala.collection.immutable.Seq
 import scala.util.parsing.combinator.RegexParsers
 
@@ -62,6 +61,7 @@ trait REPLBase[C <: REPLConfig] extends Profiler {
      */
     def driver (args : Seq[String]) {
         val config = createConfig (args)
+        config.afterInit ()
         config.output.emitln (banner)
         if (config.profile.get != None) {
             val dimensions = parseProfileOption (config.profile ())
@@ -106,9 +106,12 @@ trait REPLBase[C <: REPLConfig] extends Profiler {
 trait REPL extends REPLBase[REPLConfig] {
 
     def createConfig (args : Seq[String],
-                      output : Emitter = new OutputEmitter,
-                      error : Emitter = new ErrorEmitter) : REPLConfig =
-        new REPLConfig (args, output, error)
+                      out : Emitter = new OutputEmitter,
+                      err : Emitter = new ErrorEmitter) : REPLConfig =
+        new REPLConfig (args) {
+            lazy val output = out
+            lazy val error = err
+        }
 
 }
 
@@ -116,9 +119,7 @@ trait REPL extends REPLBase[REPLConfig] {
  * A REPL that parses its input lines into a value (such as an abstract syntax
  * tree), then processes them. Output is emitted using a configurable emitter.
  */
-trait ParsingREPLBase[T <: Attributable, C <: REPLConfig] extends REPLBase[C] with RegexParsers {
-
-    import org.kiama.attribution.Attribution.initTree
+trait ParsingREPLBase[T, C <: REPLConfig] extends REPLBase[C] with RegexParsers {
 
     /**
      * Process a user input line by parsing it to get a value of type `T`,
@@ -143,10 +144,10 @@ trait ParsingREPLBase[T <: Attributable, C <: REPLConfig] extends REPLBase[C] wi
     def parser : Parser[T]
 
     /**
-     * Process a user input value. By default, just initialise the tree.
+     * Process a user input value. By default, do nothing.
      */
     def process (t : T, config : C) {
-        initTree (t)
+        // Do nothing
     }
 
 }
@@ -155,17 +156,20 @@ trait ParsingREPLBase[T <: Attributable, C <: REPLConfig] extends REPLBase[C] wi
  * A REPL that parses its input lines into a value (such as an abstract syntax
  * tree), then processes them. `C` is the type of the configuration.
  */
-trait ParsingREPLWithConfig[T <: Attributable, C <: REPLConfig] extends ParsingREPLBase[T,C]
+trait ParsingREPLWithConfig[T, C <: REPLConfig] extends ParsingREPLBase[T,C]
 
 /**
  * A REPL that parses its input lines into a value (such as an abstract syntax
  * tree), then processes them. Output is emitted to standard output.
  */
-trait ParsingREPL[T <: Attributable] extends ParsingREPLWithConfig[T,REPLConfig] {
+trait ParsingREPL[T ] extends ParsingREPLWithConfig[T,REPLConfig] {
 
     def createConfig (args : Seq[String],
-                      output : Emitter = new OutputEmitter,
-                      error : Emitter = new ErrorEmitter) : REPLConfig =
-        new REPLConfig (args, output, error)
+                      out : Emitter = new OutputEmitter,
+                      err : Emitter = new ErrorEmitter) : REPLConfig =
+        new REPLConfig (args) {
+            lazy val output = out
+            lazy val error = err
+        }
 
 }

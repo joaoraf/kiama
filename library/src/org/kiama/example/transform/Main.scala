@@ -29,6 +29,7 @@ import org.kiama.util.Compiler
  */
 class Driver extends Parser with Compiler[Program] {
 
+    import TransformTree.TransformTree
     import org.kiama.util.Config
     import org.kiama.util.Messaging.report
 
@@ -43,7 +44,8 @@ class Driver extends Parser with Compiler[Program] {
         // Check for semantic errors on the original expression.  This
         // will cause a translation to a priority-correct representation
         // and error computation on that rep.
-        val analyser = new SemanticAnalyser
+        val tree = new TransformTree (program)
+        val analyser = new SemanticAnalyser (tree)
         val messages = analyser.errors (expr)
 
         // For testing, print the priority-correct representation

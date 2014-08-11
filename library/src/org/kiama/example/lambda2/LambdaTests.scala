@@ -31,7 +31,6 @@ class LambdaTests extends RegexParserTests with SyntaxAnalyser {
     import LambdaTree._
     import Evaluators.{evaluatorFor, mechanisms}
     import PrettyPrinter._
-    import org.kiama.attribution.Attribution.initTree
     import org.kiama.rewriting.Rewriter._
     import org.kiama.rewriting.Strategy
     import org.kiama.util.Messaging.Messages
@@ -62,8 +61,8 @@ class LambdaTests extends RegexParserTests with SyntaxAnalyser {
     def assertMessage (term : String, line : Int, col : Int, msg : String) {
         assertParseCheck (term, parser) {
             exp =>
-                initTree (exp)
-                val analyser = new Analyser
+                val tree = new LambdaTree (exp)
+                val analyser = new Analyser (tree)
                 assertType (exp, "errors", analyser.errors, line, col, msg)
                 assertType (exp, "errors2", analyser.errors2, line, col, msg)
         }
@@ -75,8 +74,8 @@ class LambdaTests extends RegexParserTests with SyntaxAnalyser {
     def assertNoMessage (term : String) {
         assertParseCheck (term, parser) {
             exp =>
-                initTree (exp)
-                val analyser = new Analyser
+                val tree = new LambdaTree (exp)
+                val analyser = new Analyser (tree)
                 val messages = analyser.errors (exp)
                 if (messages.length != 0)
                     fail (s"errors: no messages expected, got ${messages}")
@@ -149,10 +148,10 @@ class LambdaTests extends RegexParserTests with SyntaxAnalyser {
                     Var (e (n))
                 case Lam (n, t, b)      =>
                     val m = s"v${d.toString}"
-                    Lam (m, t, canonise (b, d + 1, e + (n->m)))
+                    Lam (m, t, canonise (b, d + 1, e + (n -> m)))
                 case Let (n, t, e2, e1) =>
                     val m = s"v${d.toString}"
-                    Let (m, t, canonise (e2, d + 1, e), canonise (e1, d + 1, e + (n->m)))
+                    Let (m, t, canonise (e2, d + 1, e), canonise (e1, d + 1, e + (n -> m)))
             } +
             all (canons (d, e))
         def canonise (x : Exp, d : Int, e : Map[Idn,Idn]) : Exp =

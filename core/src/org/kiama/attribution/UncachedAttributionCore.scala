@@ -139,19 +139,4 @@ trait UncachedAttributionCore extends AttributionCommon with Memoiser {
     def paramAttr[V,T,U] (name : String, f : V => T => U) : UncachedParamAttribute[V,T,U] =
         new UncachedParamAttribute (name, f)
 
-    /**
-     * Define an uncached attribute of `T` nodes of type `U` by the function `f`,
-     * which takes the current node and its parent as its arguments. `T` must be
-     * a sub-type of `Attributable` so that parents can be accessed generically.
-     */
-    def childAttr[T <: Attributable,U] (f : T => Attributable => U) : UncachedAttribute[T,U] =
-        macro AttributionMacros.childAttrMacro[T,U,UncachedAttribute[T,U]]
-
-    /**
-     * As for the other `childAttr` with the first argument specifying a name for
-     * the constructed attribute.
-     */
-    def childAttr[T <: Attributable,U] (name : String, f : T => Attributable => U) : UncachedAttribute[T,U] =
-        attr (name, (t : T) => f (t) (t.parent))
-
 }

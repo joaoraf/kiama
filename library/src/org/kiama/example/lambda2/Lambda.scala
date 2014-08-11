@@ -29,9 +29,9 @@ import scala.collection.immutable.Seq
 /**
  * Configuration for the Lambda REPL.
  */
-class LambdaConfig (args : Seq[String], output : Emitter, error : Emitter) extends REPLConfig (args, output, error) {
-    val mechanism = opt[String] ("mechanism", descr = "Evaluation mechanism",
-                                 default = Some ("reduce"))
+abstract class LambdaConfig (args : Seq[String]) extends REPLConfig (args) {
+    lazy val mechanism = opt[String] ("mechanism", descr = "Evaluation mechanism",
+                                      default = Some ("reduce"))
 }
 
 /**
@@ -45,14 +45,18 @@ class LambdaConfig (args : Seq[String], output : Emitter, error : Emitter) exten
 object Lambda extends ParsingREPLWithConfig[Exp,LambdaConfig] with SyntaxAnalyser {
 
     import Evaluators.{evaluatorFor, mechanisms}
+    import LambdaTree.LambdaTree
     import PrettyPrinter._
     import org.kiama.util.Emitter
     import org.kiama.util.Messaging.report
 
     def createConfig (args : Seq[String],
-                      output : Emitter = new OutputEmitter,
-                      error : Emitter = new ErrorEmitter) : LambdaConfig =
-        new LambdaConfig (args, output, error)
+                      out : Emitter = new OutputEmitter,
+                      err : Emitter = new ErrorEmitter) : LambdaConfig =
+        new LambdaConfig (args) {
+            lazy val output = out
+            lazy val error = err
+        }
 
     val banner = "Enter lambda calculus expressions for evaluation (:help for help)"
 
@@ -69,7 +73,7 @@ object Lambda extends ParsingREPLWithConfig[Exp,LambdaConfig] with SyntaxAnalyse
         /**
          * Print help about the available commands.
          */
-        def help {
+        def printHelp () {
             output.emitln ("""exp                  print the result of evaluating exp
                 |:eval                list the available evaluation mechanisms
                 |:eval <mechanism>    change to using <mechanism> to evaluate""".stripMargin)
@@ -77,7 +81,7 @@ object Lambda extends ParsingREPLWithConfig[Exp,LambdaConfig] with SyntaxAnalyse
 
         line match {
             case Command (Seq (":help")) =>
-                help
+                printHelp ()
 
             case Command (Seq (":eval")) =>
                 output.emitln ("Available evaluation mechanisms:")
@@ -113,15 +117,15 @@ object Lambda extends ParsingREPLWithConfig[Exp,LambdaConfig] with SyntaxAnalyse
     }
 
     /**
-     * The analysis object to use for processing.
-     */
-    val analyser = new Analyser
-
-    /**
      * Process an expression.
      */
     override def process (e : Exp, config : LambdaConfig) {
         super.process (e, config)
+
+        // Make an analyser for a tree for this expression
+        val tree = new LambdaTree (e)
+        val analyser = new Analyser (tree)
+
         // First conduct a semantic analysis check: compute the expression's
         // type and see if any errors occurred
         val messages = analyser.errors (e)

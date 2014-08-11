@@ -30,7 +30,6 @@ import org.kiama.util.RegexParserTests
 class SemanticAnalyserTests extends SyntaxAnalyser with RegexParserTests {
 
     import MiniJavaTree._
-    import org.kiama.attribution.Attribution.initTree
     import org.kiama.util.{Message, Messaging}
     import org.kiama.util.Positions.positionAt
     import scala.collection.immutable.Seq
@@ -598,8 +597,8 @@ class SemanticAnalyserTests extends SyntaxAnalyser with RegexParserTests {
      * Run the semantic checks on the given program.
      */
     def runSemanticChecks (prog : Program, expected : Message*) : SemanticAnalyser = {
-        initTree (prog)
-        val analyser = new SemanticAnalyser
+        val tree = new MiniJavaTree (prog)
+        val analyser = new SemanticAnalyser (tree)
         assertMessages (analyser.errors (prog), expected : _*)
         analyser
     }
